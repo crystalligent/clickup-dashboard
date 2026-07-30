@@ -3,26 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClickUp Dashboard</title>
+    <title>BXI Task Tracker Dashboard</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="app">
+        <!-- Header -->
         <header class="header">
-            <h1>📋 ClickUp Dashboard</h1>
-            <div class="header-actions">
-                <span class="last-updated" id="lastUpdated">Last updated: —</span>
-                <button class="btn btn-primary" id="refreshBtn" onclick="fetchTasks()">↻ Refresh</button>
+            <div class="header-left">
+                <h1>BXI Core, CX &amp; Primer</h1>
+                <span class="subtitle">Task Tracker Dashboard</span>
+            </div>
+            <div class="header-right">
+                <span class="last-updated" id="lastUpdated">—</span>
+                <button class="btn btn-icon" onclick="toggleConfig()" title="Settings">⚙️</button>
+                <button class="btn btn-primary" id="refreshBtn" onclick="fetchAllData()">↻ Refresh</button>
             </div>
         </header>
 
-        <div class="config-panel" id="configPanel">
+        <!-- Config Panel (hidden by default since credentials are hardcoded) -->
+        <div class="config-panel" id="configPanel" style="display:none;">
             <div class="config-header">
                 <h2>⚙️ Configuration</h2>
-                <button class="btn btn-sm" onclick="toggleConfig()">Hide</button>
+                <button class="btn btn-sm" onclick="toggleConfig()">×</button>
             </div>
-            <p class="config-note">Your API key is stored only in your browser's localStorage. It is never sent anywhere except directly to ClickUp's API.</p>
+            <p class="config-note">Credentials are stored in your browser's localStorage only.</p>
             <div class="config-fields">
                 <div class="field">
                     <label for="apiKey">ClickUp API Token</label>
@@ -30,100 +36,167 @@
                 </div>
                 <div class="field">
                     <label for="listId">List ID</label>
-                    <input type="text" id="listId" placeholder="e.g. 901611289144" />
+                    <input type="text" id="listId" placeholder="901609965646" />
                 </div>
-                <div class="field">
-                    <label for="teamId">Workspace/Team ID (optional, for members)</label>
-                    <input type="text" id="teamId" placeholder="e.g. 9016594613" />
-                </div>
-                <button class="btn btn-primary" onclick="saveConfig()">Save & Load Data</button>
+                <button class="btn btn-primary" onclick="saveConfig()">Save & Reload</button>
             </div>
         </div>
 
-        <div class="show-config" id="showConfigBtn" style="display:none;">
-            <button class="btn btn-sm" onclick="toggleConfig()">⚙️ Settings</button>
-        </div>
-
+        <!-- Loading State -->
         <div class="loading" id="loading" style="display:none;">
             <div class="spinner"></div>
             <p>Loading tasks from ClickUp...</p>
+            <p class="loading-progress" id="loadingProgress"></p>
         </div>
 
+        <!-- Error State -->
         <div class="error" id="error" style="display:none;"></div>
 
+        <!-- Dashboard Content -->
         <div class="dashboard" id="dashboard" style="display:none;">
+
+            <!-- Pipeline Overview -->
+            <section class="section">
+                <h2 class="section-title">Pipeline Overview</h2>
+                <div class="pipeline" id="pipeline"></div>
+            </section>
+
             <!-- KPI Cards -->
-            <div class="kpi-grid">
-                <div class="kpi-card">
-                    <div class="kpi-value" id="totalTasks">0</div>
-                    <div class="kpi-label">Total Tasks</div>
-                </div>
-                <div class="kpi-card kpi-open">
-                    <div class="kpi-value" id="openTasks">0</div>
-                    <div class="kpi-label">Open</div>
-                </div>
-                <div class="kpi-card kpi-progress">
-                    <div class="kpi-value" id="inProgressTasks">0</div>
-                    <div class="kpi-label">In Progress</div>
-                </div>
-                <div class="kpi-card kpi-done">
-                    <div class="kpi-value" id="doneTasks">0</div>
-                    <div class="kpi-label">Completed</div>
-                </div>
-                <div class="kpi-card kpi-overdue">
-                    <div class="kpi-value" id="overdueTasks">0</div>
-                    <div class="kpi-label">Overdue</div>
-                </div>
-            </div>
-
-            <!-- Charts -->
-            <div class="charts-grid">
-                <div class="chart-card">
-                    <h3>Status Breakdown</h3>
-                    <canvas id="statusChart"></canvas>
-                </div>
-                <div class="chart-card">
-                    <h3>Priority Distribution</h3>
-                    <canvas id="priorityChart"></canvas>
-                </div>
-                <div class="chart-card">
-                    <h3>Assignee Workload</h3>
-                    <canvas id="assigneeChart"></canvas>
-                </div>
-                <div class="chart-card">
-                    <h3>Tasks Created Over Time</h3>
-                    <canvas id="timelineChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Task Table -->
-            <div class="table-card">
-                <div class="table-header">
-                    <h3>All Tasks</h3>
-                    <div class="table-filters">
-                        <select id="filterStatus" onchange="renderTable()">
-                            <option value="">All Statuses</option>
-                        </select>
-                        <select id="filterPriority" onchange="renderTable()">
-                            <option value="">All Priorities</option>
-                        </select>
+            <section class="section">
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-icon">📋</div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="totalTasks">0</div>
+                            <div class="kpi-label">Total Tasks</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card kpi-active">
+                        <div class="kpi-icon">🔄</div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="activeTasks">0</div>
+                            <div class="kpi-label">Active (In Progress)</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card kpi-blocked">
+                        <div class="kpi-icon">⚠️</div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="blockedTasks">0</div>
+                            <div class="kpi-label">Testing Failed / Fixes</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card kpi-done">
+                        <div class="kpi-icon">✅</div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="completedTasks">0</div>
+                            <div class="kpi-label">Completed</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card kpi-rate">
+                        <div class="kpi-icon">📈</div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="completionRate">0%</div>
+                            <div class="kpi-label">Completion Rate</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card kpi-urgent">
+                        <div class="kpi-icon">🔴</div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="urgentTasks">0</div>
+                            <div class="kpi-label">Urgent Priority</div>
+                        </div>
                     </div>
                 </div>
-                <div class="table-wrapper">
-                    <table id="taskTable">
-                        <thead>
-                            <tr>
-                                <th>Task</th>
-                                <th>Status</th>
-                                <th>Priority</th>
-                                <th>Assignee</th>
-                                <th>Due Date</th>
-                            </tr>
-                        </thead>
-                        <tbody id="taskTableBody"></tbody>
-                    </table>
+            </section>
+
+            <!-- Charts Row 1: Status & Priority -->
+            <section class="section">
+                <div class="charts-grid-2">
+                    <div class="chart-card">
+                        <h3>Status Phase Distribution</h3>
+                        <canvas id="phaseChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Priority Breakdown</h3>
+                        <canvas id="priorityChart"></canvas>
+                    </div>
                 </div>
-            </div>
+            </section>
+
+            <!-- Charts Row 2: Team & Throughput -->
+            <section class="section">
+                <div class="charts-grid-2">
+                    <div class="chart-card">
+                        <h3>Team Workload (Active Tasks)</h3>
+                        <canvas id="workloadChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Weekly Throughput (Created vs Completed)</h3>
+                        <canvas id="throughputChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Charts Row 3: Tags & Cycle -->
+            <section class="section">
+                <div class="charts-grid-2">
+                    <div class="chart-card">
+                        <h3>Tasks by Product / Tag</h3>
+                        <canvas id="tagChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Average Resolution Time by Assignee (days)</h3>
+                        <canvas id="cycleTimeChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Team Member Cards -->
+            <section class="section">
+                <h2 class="section-title">Team Activity</h2>
+                <div class="team-grid" id="teamGrid"></div>
+            </section>
+
+            <!-- Task Table -->
+            <section class="section">
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3>Task List</h3>
+                        <div class="table-filters">
+                            <select id="filterStatus" onchange="renderTable()">
+                                <option value="">All Statuses</option>
+                            </select>
+                            <select id="filterPriority" onchange="renderTable()">
+                                <option value="">All Priorities</option>
+                            </select>
+                            <select id="filterAssignee" onchange="renderTable()">
+                                <option value="">All Assignees</option>
+                            </select>
+                            <select id="filterTag" onchange="renderTable()">
+                                <option value="">All Tags</option>
+                            </select>
+                            <input type="text" id="filterSearch" placeholder="Search tasks..." oninput="renderTable()" />
+                        </div>
+                    </div>
+                    <div class="table-stats" id="tableStats"></div>
+                    <div class="table-wrapper">
+                        <table id="taskTable">
+                            <thead>
+                                <tr>
+                                    <th class="sortable" onclick="sortTable('name')">Task ↕</th>
+                                    <th class="sortable" onclick="sortTable('status')">Status ↕</th>
+                                    <th class="sortable" onclick="sortTable('priority')">Priority ↕</th>
+                                    <th class="sortable" onclick="sortTable('assignee')">Assignee ↕</th>
+                                    <th>Tags</th>
+                                    <th class="sortable" onclick="sortTable('created')">Created ↕</th>
+                                </tr>
+                            </thead>
+                            <tbody id="taskTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="table-pagination" id="tablePagination"></div>
+                </div>
+            </section>
         </div>
     </div>
 
