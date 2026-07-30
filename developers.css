@@ -317,3 +317,70 @@
         grid-template-columns: repeat(2, 1fr);
     }
 }
+
+
+/* Role Configuration */
+.role-config {
+    margin-top: 20px;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+}
+
+.role-section {
+    margin-bottom: 14px;
+}
+
+.role-section h4 {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.role-hint {
+    font-weight: 400;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+}
+
+.role-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.role-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface-2);
+    cursor: pointer;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    user-select: none;
+}
+
+.role-chip:hover {
+    background: var(--surface-3);
+    color: var(--text);
+}
+
+.role-chip.selected {
+    background: var(--primary-soft);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.role-chip input[type="checkbox"] {
+    display: none;
+}
+
+.role-empty {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    font-style: italic;
+}

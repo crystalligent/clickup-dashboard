@@ -53,25 +53,125 @@ const PAGE_SIZE = 25;
 // --- Developer Attribution ---
 // For each task, determine who the developer(s) are.
 // Returns array of { username, color, initials } objects.
+//
+// Logic:
+// 1. Task in dev stages → current assignee = developer
+// 2. Task in TESTING stages → assignee is the TESTER, developer is identified
+//    from watchers (non-assignee, non-PM watchers)
+// 3. Task in done/release stages:
+//    a. If current assignee is a configured TESTER → developer is from watchers
+//    b. If current assignee is NOT a configured tester → assignee IS the developer
+//
+// Roles are configurable from the UI (stored in localStorage).
+
+// Testing stages where the assignee switches to a tester
+const TESTING_STAGES = [
+    'for testing in staging',
+    'for testing in hotfix',
+    'ongoing testing',
+    'testing: passed',
+    'testing: failed'
+];
+
+// Role config - stored in localStorage, configurable from UI
+function getProjectManagers() {
+    const stored = localStorage.getItem('clickup_project_managers');
+    return stored ? JSON.parse(stored) : [];
+}
+
+function getKnownTesters() {
+    const stored = localStorage.getItem('clickup_known_testers');
+    return stored ? JSON.parse(stored) : [];
+}
+
+function saveRoles() {
+    const pms = [...document.querySelectorAll('#pmCheckboxes input:checked')].map(cb => cb.value);
+    const testers = [...document.querySelectorAll('#testerCheckboxes input:checked')].map(cb => cb.value);
+    localStorage.setItem('clickup_project_managers', JSON.stringify(pms));
+    localStorage.setItem('clickup_known_testers', JSON.stringify(testers));
+    renderDevDashboard();
+}
+
+function populateRoleConfig() {
+    // Collect all unique people from tasks
+    const people = new Set();
+    allFetchedDevTasks.forEach(t => {
+        (t.assignees || []).forEach(a => { if (a.username) people.add(a.username); });
+        (t.watchers || []).forEach(w => { if (w.username) people.add(w.username); });
+        if (t.creator?.username) people.add(t.creator.username);
+    });
+
+    const sorted = [...people].sort();
+    const pms = getProjectManagers();
+    const testers = getKnownTesters();
+
+    document.getElementById('pmCheckboxes').innerHTML = sorted.map(name =>
+        `<label class="role-chip ${pms.includes(name) ? 'selected' : ''}" onclick="this.classList.toggle('selected')">
+            <input type="checkbox" value="${escapeHtml(name)}" ${pms.includes(name) ? 'checked' : ''} onchange="saveRoles()">
+            <span>${escapeHtml(name)}</span>
+        </label>`
+    ).join('');
+
+    document.getElementById('testerCheckboxes').innerHTML = sorted.map(name =>
+        `<label class="role-chip ${testers.includes(name) ? 'selected' : ''}" onclick="this.classList.toggle('selected')">
+            <input type="checkbox" value="${escapeHtml(name)}" ${testers.includes(name) ? 'checked' : ''} onchange="saveRoles()">
+            <span>${escapeHtml(name)}</span>
+        </label>`
+    ).join('');
+}
 
 function getDevelopers(task) {
     const status = (task.status?.status || '').toLowerCase();
-    const currentAssignees = (task.assignees || []).map(a => a.username);
+    const currentAssignees = (task.assignees || []);
+    const currentAssigneeNames = currentAssignees.map(a => a.username);
+    const projectManagers = getProjectManagers();
+    const knownTesters = getKnownTesters();
 
-    // If task is still in dev stages, current assignees ARE the developers
+    // 1. Task is in dev stages → current assignee is the developer
     if (DEV_STAGES.includes(status)) {
-        return task.assignees || [];
+        return currentAssignees.length > 0 ? currentAssignees : (task.creator ? [task.creator] : []);
     }
 
-    // Task has moved past dev (testing/release/done)
-    // Developer = watchers who are NOT the current assignee (tester)
-    // This captures the original dev who worked on it before handoff
-    const watchers = task.watchers || [];
-    const developers = watchers.filter(w => !currentAssignees.includes(w.username));
+    // 2. Task is in TESTING stages → assignee is the tester
+    if (TESTING_STAGES.includes(status)) {
+        return getDevFromWatchers(task, currentAssigneeNames, projectManagers);
+    }
 
-    // If no developers found via watchers (edge case), fall back to creator
-    if (developers.length === 0 && task.creator) {
-        return [task.creator];
+    // 3. Task is in done/release stages
+    //    Check if current assignee is a known tester
+    const assigneeIsTester = currentAssigneeNames.some(name => knownTesters.includes(name));
+
+    if (assigneeIsTester) {
+        return getDevFromWatchers(task, currentAssigneeNames, projectManagers);
+    }
+
+    // Current assignee is the developer (they stayed assigned through completion)
+    if (currentAssignees.length > 0) {
+        return currentAssignees;
+    }
+
+    // Fallback: creator
+    return task.creator ? [task.creator] : [];
+}
+
+// Helper: find developers from watchers list (excluding current assignees and PMs)
+function getDevFromWatchers(task, currentAssigneeNames, projectManagers) {
+    const watchers = task.watchers || [];
+
+    // Get watchers who are not the current assignee and not a PM
+    let developers = watchers.filter(w =>
+        !currentAssigneeNames.includes(w.username) &&
+        !projectManagers.includes(w.username)
+    );
+
+    // If that yields nothing, try without PM filter
+    if (developers.length === 0) {
+        developers = watchers.filter(w => !currentAssigneeNames.includes(w.username));
+    }
+
+    // If still nothing, fallback to creator
+    if (developers.length === 0) {
+        return task.creator ? [task.creator] : [];
     }
 
     return developers;
@@ -219,6 +319,7 @@ async function fetchDevData() {
         });
 
         allFetchedDevTasks = [...devTasks];
+        populateRoleConfig();
         populateExcludeCheckboxes();
         applyExclusions();
 
