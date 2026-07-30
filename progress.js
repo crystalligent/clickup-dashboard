@@ -11,6 +11,8 @@ const DEFAULT_LIST_ID = '901609965646';
 const NO_PROGRESS_STATUSES = ['open', 'pending review (qa)', 'defrerred'];
 
 let progressTasks = [];
+let allFetchedProgressTasks = [];
+let excludedAssignees = new Set();
 let chartInstances = {};
 let currentSort = { field: 'updated', direction: 'desc' };
 let currentPage = 1;
@@ -186,9 +188,12 @@ async function fetchProgressData() {
             return true;
         });
 
+        allFetchedProgressTasks = [...progressTasks];
+        populateExcludeCheckboxes();
+        applyExclusions();
+
         const rangeLabel = `${new Date(dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — ${new Date(dateTo).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-        document.getElementById('dateRangeInfo').textContent =
-            `Found ${tasks.length} updated tasks in period. ${progressTasks.length} show meaningful progress (excluding Open, Deferred, and Closed).`;
+        updateInfoText();
 
         renderProgressDashboard();
 
@@ -197,6 +202,61 @@ async function fetchProgressData() {
     } finally {
         showLoading(false);
     }
+}
+
+// --- Exclude Assignees ---
+
+function populateExcludeCheckboxes() {
+    const assignees = new Set();
+    allFetchedProgressTasks.forEach(t => {
+        (t.assignees || []).forEach(a => {
+            if (a.username) assignees.add(a.username);
+        });
+    });
+
+    const sorted = [...assignees].sort();
+    const container = document.getElementById('excludeCheckboxes');
+
+    container.innerHTML = sorted.map(name => {
+        const isExcluded = excludedAssignees.has(name);
+        return `<label class="exclude-chip ${isExcluded ? 'excluded' : ''}" onclick="toggleExclude('${escapeHtml(name)}', this)">
+            <span>${escapeHtml(name)}</span>
+            <span class="chip-x">✕</span>
+        </label>`;
+    }).join('');
+}
+
+function toggleExclude(name, el) {
+    if (excludedAssignees.has(name)) {
+        excludedAssignees.delete(name);
+        el.classList.remove('excluded');
+    } else {
+        excludedAssignees.add(name);
+        el.classList.add('excluded');
+    }
+    applyExclusions();
+    updateInfoText();
+    renderProgressDashboard();
+}
+
+function applyExclusions() {
+    if (excludedAssignees.size === 0) {
+        progressTasks = [...allFetchedProgressTasks];
+    } else {
+        progressTasks = allFetchedProgressTasks.filter(t => {
+            const assignees = (t.assignees || []).map(a => a.username).filter(Boolean);
+            if (assignees.length === 0) return true;
+            return assignees.some(name => !excludedAssignees.has(name));
+        });
+    }
+}
+
+function updateInfoText() {
+    const base = `${allFetchedProgressTasks.length} tickets with meaningful progress`;
+    const extra = excludedAssignees.size > 0
+        ? ` → ${progressTasks.length} after excluding ${excludedAssignees.size} assignee(s)`
+        : '';
+    document.getElementById('dateRangeInfo').textContent = base + extra;
 }
 
 // --- Render ---

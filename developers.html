@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Team Progress Tracker — BXI</title>
+    <title>Developer Progress — BXI</title>
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="progress.css">
+    <link rel="stylesheet" href="developers.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -13,12 +13,12 @@
         <!-- Header -->
         <header class="header">
             <div class="header-left">
-                <h1>Team Progress Tracker</h1>
+                <h1>Developer Progress</h1>
                 <span class="subtitle">BXI Core, CX &amp; Primer</span>
             </div>
             <div class="header-right">
                 <a href="index.html" class="btn">← Main Dashboard</a>
-                <a href="developers.html" class="btn">👨‍💻 Developers</a>
+                <a href="progress.html" class="btn">📊 Progress Tracker</a>
                 <button class="btn btn-icon" onclick="toggleConfig()" title="Settings">⚙️</button>
             </div>
         </header>
@@ -42,18 +42,18 @@
             </div>
         </div>
 
-        <!-- Date Range Selector -->
+        <!-- Date Range -->
         <section class="section">
             <div class="date-range-panel">
                 <div class="date-range-presets">
-                    <button class="preset-btn active" onclick="setPreset('this-month')">This Month</button>
-                    <button class="preset-btn" onclick="setPreset('last-week')">Last Week</button>
-                    <button class="preset-btn" onclick="setPreset('this-week')">This Week</button>
-                    <button class="preset-btn" onclick="setPreset('last-month')">Last Month</button>
-                    <button class="preset-btn" onclick="setPreset('last-7')">Last 7 Days</button>
-                    <button class="preset-btn" onclick="setPreset('last-14')">Last 14 Days</button>
-                    <button class="preset-btn" onclick="setPreset('last-30')">Last 30 Days</button>
-                    <button class="preset-btn" onclick="setPreset('custom')">Custom</button>
+                    <button class="preset-btn active" onclick="setPreset('this-month', this)">This Month</button>
+                    <button class="preset-btn" onclick="setPreset('last-week', this)">Last Week</button>
+                    <button class="preset-btn" onclick="setPreset('this-week', this)">This Week</button>
+                    <button class="preset-btn" onclick="setPreset('last-month', this)">Last Month</button>
+                    <button class="preset-btn" onclick="setPreset('last-7', this)">Last 7 Days</button>
+                    <button class="preset-btn" onclick="setPreset('last-14', this)">Last 14 Days</button>
+                    <button class="preset-btn" onclick="setPreset('last-30', this)">Last 30 Days</button>
+                    <button class="preset-btn" onclick="setPreset('custom', this)">Custom</button>
                 </div>
                 <div class="date-range-inputs">
                     <div class="field">
@@ -64,11 +64,17 @@
                         <label for="dateTo">To</label>
                         <input type="date" id="dateTo" onchange="onDateChange()" />
                     </div>
-                    <button class="btn btn-primary" onclick="fetchProgressData()">Load Data</button>
+                    <button class="btn btn-primary" onclick="fetchDevData()">Load Data</button>
                 </div>
+                <p class="date-range-note">
+                    Shows tickets that progressed through development stages (assigned to dev → for testing in hotfix).
+                    Developers are the assignees during these stages.
+                </p>
                 <div class="exclude-filter" id="excludeFilter" style="margin-top:14px;">
                     <label class="exclude-label">Exclude Assignees:</label>
-                    <div class="exclude-checkboxes" id="excludeCheckboxes"></div>
+                    <div class="exclude-checkboxes" id="excludeCheckboxes">
+                        <!-- Populated dynamically after data loads -->
+                    </div>
                 </div>
                 <div class="date-range-info" id="dateRangeInfo"></div>
             </div>
@@ -77,52 +83,52 @@
         <!-- Loading -->
         <div class="loading" id="loading" style="display:none;">
             <div class="spinner"></div>
-            <p>Loading progress data...</p>
+            <p>Loading developer data...</p>
             <p class="loading-progress" id="loadingProgress"></p>
         </div>
 
         <!-- Error -->
         <div class="error" id="error" style="display:none;"></div>
 
-        <!-- Progress Dashboard -->
+        <!-- Dashboard -->
         <div class="dashboard" id="dashboard" style="display:none;">
 
-            <!-- Summary KPIs -->
+            <!-- Dev KPIs -->
             <section class="section">
                 <div class="kpi-grid">
                     <div class="kpi-card kpi-active">
-                        <div class="kpi-icon">🚀</div>
+                        <div class="kpi-icon">👨‍💻</div>
                         <div class="kpi-content">
-                            <div class="kpi-value" id="progressCount">0</div>
-                            <div class="kpi-label">Tickets with Progress</div>
+                            <div class="kpi-value" id="totalDevTasks">0</div>
+                            <div class="kpi-label">Dev Tasks Progressed</div>
                         </div>
                     </div>
                     <div class="kpi-card kpi-done">
                         <div class="kpi-icon">✅</div>
                         <div class="kpi-content">
-                            <div class="kpi-value" id="completedCount">0</div>
-                            <div class="kpi-label">Completed in Period</div>
+                            <div class="kpi-value" id="devCompletedTasks">0</div>
+                            <div class="kpi-label">Moved to Testing+</div>
                         </div>
                     </div>
                     <div class="kpi-card">
                         <div class="kpi-icon">🔧</div>
                         <div class="kpi-content">
-                            <div class="kpi-value" id="inDevCount">0</div>
-                            <div class="kpi-label">In Development</div>
+                            <div class="kpi-value" id="stillInDev">0</div>
+                            <div class="kpi-label">Still in Dev</div>
                         </div>
                     </div>
-                    <div class="kpi-card">
-                        <div class="kpi-icon">🧪</div>
+                    <div class="kpi-card kpi-blocked">
+                        <div class="kpi-icon">🔄</div>
                         <div class="kpi-content">
-                            <div class="kpi-value" id="inTestCount">0</div>
-                            <div class="kpi-label">In Testing</div>
+                            <div class="kpi-value" id="fixingTasks">0</div>
+                            <div class="kpi-label">Ongoing Fix</div>
                         </div>
                     </div>
                     <div class="kpi-card kpi-rate">
-                        <div class="kpi-icon">👥</div>
+                        <div class="kpi-icon">📈</div>
                         <div class="kpi-content">
-                            <div class="kpi-value" id="activeMembers">0</div>
-                            <div class="kpi-label">Active Members</div>
+                            <div class="kpi-value" id="devThroughputRate">0%</div>
+                            <div class="kpi-label">Throughput Rate</div>
                         </div>
                     </div>
                 </div>
@@ -132,12 +138,12 @@
             <section class="section">
                 <div class="charts-grid-2">
                     <div class="chart-card">
-                        <h3>Progress by Team Member</h3>
-                        <canvas id="memberProgressChart"></canvas>
+                        <h3>Tickets Progressed by Developer</h3>
+                        <canvas id="devBarChart"></canvas>
                     </div>
                     <div class="chart-card">
-                        <h3>Current Status of Progressed Tickets</h3>
-                        <canvas id="statusDistChart"></canvas>
+                        <h3>Dev Output: Moved to Testing vs Still in Dev</h3>
+                        <canvas id="devOutputChart"></canvas>
                     </div>
                 </div>
             </section>
@@ -145,32 +151,35 @@
             <section class="section">
                 <div class="charts-grid-2">
                     <div class="chart-card">
-                        <h3>Progress by Tag / Product</h3>
-                        <canvas id="tagProgressChart"></canvas>
+                        <h3>Current Stage of Dev Tasks</h3>
+                        <canvas id="devStageChart"></canvas>
                     </div>
                     <div class="chart-card">
-                        <h3>Priority of Progressed Tickets</h3>
-                        <canvas id="priorityProgressChart"></canvas>
+                        <h3>Avg Days in Development (to reach Testing)</h3>
+                        <canvas id="devSpeedChart"></canvas>
                     </div>
                 </div>
             </section>
 
-            <!-- Progress Table -->
+            <!-- Developer Cards -->
+            <section class="section">
+                <h2 class="section-title">Developer Breakdown</h2>
+                <div class="dev-grid" id="devGrid"></div>
+            </section>
+
+            <!-- Task Table -->
             <section class="section">
                 <div class="table-card">
                     <div class="table-header">
-                        <h3>Tickets with Progress</h3>
+                        <h3>Developer Task List</h3>
                         <div class="table-filters">
-                            <select id="filterAssignee" onchange="renderProgressTable()">
-                                <option value="">All Assignees</option>
+                            <select id="filterDev" onchange="renderDevTable()">
+                                <option value="">All Developers</option>
                             </select>
-                            <select id="filterStatus" onchange="renderProgressTable()">
-                                <option value="">All Statuses</option>
+                            <select id="filterStage" onchange="renderDevTable()">
+                                <option value="">All Stages</option>
                             </select>
-                            <select id="filterTag" onchange="renderProgressTable()">
-                                <option value="">All Tags</option>
-                            </select>
-                            <input type="text" id="filterSearch" placeholder="Search..." oninput="renderProgressTable()" />
+                            <input type="text" id="filterSearch" placeholder="Search..." oninput="renderDevTable()" />
                         </div>
                     </div>
                     <div class="table-stats" id="tableStats"></div>
@@ -180,28 +189,22 @@
                                 <tr>
                                     <th class="sortable" onclick="sortBy('name')">Task ↕</th>
                                     <th class="sortable" onclick="sortBy('status')">Current Status ↕</th>
-                                    <th class="sortable" onclick="sortBy('assignee')">Assignee ↕</th>
+                                    <th class="sortable" onclick="sortBy('assignee')">Developer ↕</th>
                                     <th class="sortable" onclick="sortBy('priority')">Priority ↕</th>
                                     <th>Tags</th>
                                     <th class="sortable" onclick="sortBy('updated')">Last Updated ↕</th>
                                     <th class="sortable" onclick="sortBy('created')">Created ↕</th>
                                 </tr>
                             </thead>
-                            <tbody id="progressTableBody"></tbody>
+                            <tbody id="devTableBody"></tbody>
                         </table>
                     </div>
                     <div class="table-pagination" id="tablePagination"></div>
                 </div>
             </section>
-
-            <!-- Team Breakdown -->
-            <section class="section">
-                <h2 class="section-title">Individual Breakdown</h2>
-                <div class="team-breakdown" id="teamBreakdown"></div>
-            </section>
         </div>
     </div>
 
-    <script src="progress.js"></script>
+    <script src="developers.js"></script>
 </body>
 </html>

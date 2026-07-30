@@ -206,3 +206,63 @@
         grid-template-columns: 1fr;
     }
 }
+
+
+/* Exclude Assignees Filter */
+.exclude-filter {
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+}
+
+.exclude-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.exclude-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.exclude-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface-2);
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    user-select: none;
+}
+
+.exclude-chip:hover {
+    background: var(--surface-3);
+    color: var(--text);
+}
+
+.exclude-chip.excluded {
+    background: rgba(255, 77, 106, 0.12);
+    border-color: #ff4d6a;
+    color: #ff4d6a;
+    text-decoration: line-through;
+}
+
+.exclude-chip .chip-x {
+    font-size: 0.7rem;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.exclude-chip.excluded .chip-x {
+    opacity: 1;
+}
