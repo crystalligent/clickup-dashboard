@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClickUp Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <h1>📋 ClickUp Dashboard</h1>
+            <div class="header-actions">
+                <span class="last-updated" id="lastUpdated">Last updated: —</span>
+                <button class="btn btn-primary" id="refreshBtn" onclick="fetchTasks()">↻ Refresh</button>
+            </div>
+        </header>
+
+        <div class="config-panel" id="configPanel">
+            <div class="config-header">
+                <h2>⚙️ Configuration</h2>
+                <button class="btn btn-sm" onclick="toggleConfig()">Hide</button>
+            </div>
+            <p class="config-note">Your API key is stored only in your browser's localStorage. It is never sent anywhere except directly to ClickUp's API.</p>
+            <div class="config-fields">
+                <div class="field">
+                    <label for="apiKey">ClickUp API Token</label>
+                    <input type="password" id="apiKey" placeholder="pk_..." />
+                </div>
+                <div class="field">
+                    <label for="listId">List ID</label>
+                    <input type="text" id="listId" placeholder="e.g. 901611289144" />
+                </div>
+                <div class="field">
+                    <label for="teamId">Workspace/Team ID (optional, for members)</label>
+                    <input type="text" id="teamId" placeholder="e.g. 9016594613" />
+                </div>
+                <button class="btn btn-primary" onclick="saveConfig()">Save & Load Data</button>
+            </div>
+        </div>
+
+        <div class="show-config" id="showConfigBtn" style="display:none;">
+            <button class="btn btn-sm" onclick="toggleConfig()">⚙️ Settings</button>
+        </div>
+
+        <div class="loading" id="loading" style="display:none;">
+            <div class="spinner"></div>
+            <p>Loading tasks from ClickUp...</p>
+        </div>
+
+        <div class="error" id="error" style="display:none;"></div>
+
+        <div class="dashboard" id="dashboard" style="display:none;">
+            <!-- KPI Cards -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-value" id="totalTasks">0</div>
+                    <div class="kpi-label">Total Tasks</div>
+                </div>
+                <div class="kpi-card kpi-open">
+                    <div class="kpi-value" id="openTasks">0</div>
+                    <div class="kpi-label">Open</div>
+                </div>
+                <div class="kpi-card kpi-progress">
+                    <div class="kpi-value" id="inProgressTasks">0</div>
+                    <div class="kpi-label">In Progress</div>
+                </div>
+                <div class="kpi-card kpi-done">
+                    <div class="kpi-value" id="doneTasks">0</div>
+                    <div class="kpi-label">Completed</div>
+                </div>
+                <div class="kpi-card kpi-overdue">
+                    <div class="kpi-value" id="overdueTasks">0</div>
+                    <div class="kpi-label">Overdue</div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>Status Breakdown</h3>
+                    <canvas id="statusChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Priority Distribution</h3>
+                    <canvas id="priorityChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Assignee Workload</h3>
+                    <canvas id="assigneeChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Tasks Created Over Time</h3>
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Task Table -->
+            <div class="table-card">
+                <div class="table-header">
+                    <h3>All Tasks</h3>
+                    <div class="table-filters">
+                        <select id="filterStatus" onchange="renderTable()">
+                            <option value="">All Statuses</option>
+                        </select>
+                        <select id="filterPriority" onchange="renderTable()">
+                            <option value="">All Priorities</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table id="taskTable">
+                        <thead>
+                            <tr>
+                                <th>Task</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Assignee</th>
+                                <th>Due Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="taskTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
