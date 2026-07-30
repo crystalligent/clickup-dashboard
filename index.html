@@ -24,18 +24,14 @@
             </div>
         </header>
 
-        <!-- Config Panel (hidden by default since credentials are hardcoded) -->
+        <!-- Config Panel -->
         <div class="config-panel" id="configPanel" style="display:none;">
             <div class="config-header">
                 <h2>⚙️ Configuration</h2>
                 <button class="btn btn-sm" onclick="toggleConfig()">×</button>
             </div>
-            <p class="config-note">Credentials are stored in your browser's localStorage only.</p>
+            <p class="config-note">API key is securely stored in Netlify environment variables (CLICKUP_KEY).</p>
             <div class="config-fields">
-                <div class="field">
-                    <label for="apiKey">ClickUp API Token</label>
-                    <input type="password" id="apiKey" placeholder="pk_..." />
-                </div>
                 <div class="field">
                     <label for="listId">List ID</label>
                     <input type="text" id="listId" placeholder="901609965646" />

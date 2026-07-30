@@ -353,7 +353,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 4px 10px;
+    padding: 6px 14px;
     border: 1px solid var(--border);
     border-radius: 16px;
     background: var(--surface-2);
@@ -367,12 +367,14 @@
 .role-chip:hover {
     background: var(--surface-3);
     color: var(--text);
+    border-color: var(--text-muted);
 }
 
 .role-chip.selected {
     background: var(--primary-soft);
     border-color: var(--primary);
     color: var(--primary);
+    font-weight: 600;
 }
 
 .role-chip input[type="checkbox"] {

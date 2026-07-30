@@ -4,8 +4,24 @@
 // within a specified date range
 // ============================================================
 
-const DEFAULT_API_KEY = 'pk_270739823_X5BBT5TZCSFD3OQJQX0GT5XVHJSS13DY';
 const DEFAULT_LIST_ID = '901609965646';
+
+// Use Netlify function proxy if available, otherwise fall back to direct API
+function getApiBase() {
+    if (window.location.hostname !== '' && window.location.protocol !== 'file:') {
+        return '/.netlify/functions/clickup-proxy?path=';
+    }
+    return null;
+}
+
+async function clickupFetch(apiPath) {
+    const proxyBase = getApiBase();
+    if (proxyBase) {
+        const res = await fetch(proxyBase + encodeURIComponent(apiPath));
+        return res;
+    }
+    throw new Error('This dashboard must be hosted on Netlify to access ClickUp data.');
+}
 
 // Statuses that indicate NO progress (still in backlog/queue)
 const NO_PROGRESS_STATUSES = ['open', 'pending review (qa)', 'defrerred'];
@@ -42,22 +58,17 @@ const STATUS_PHASES = {
 
 function getConfig() {
     return {
-        apiKey: localStorage.getItem('clickup_api_key') || DEFAULT_API_KEY,
         listId: localStorage.getItem('clickup_list_id') || DEFAULT_LIST_ID
     };
 }
 
 function loadConfig() {
-    const config = getConfig();
-    document.getElementById('apiKey').value = config.apiKey;
-    document.getElementById('listId').value = config.listId;
+    document.getElementById('listId').value = getConfig().listId;
 }
 
 function saveConfig() {
-    const apiKey = document.getElementById('apiKey').value.trim();
     const listId = document.getElementById('listId').value.trim();
-    if (!apiKey || !listId) return;
-    localStorage.setItem('clickup_api_key', apiKey);
+    if (!listId) return;
     localStorage.setItem('clickup_list_id', listId);
     toggleConfig();
 }
@@ -137,7 +148,7 @@ function formatDate(d) {
 // --- API ---
 
 async function fetchProgressData() {
-    const { apiKey, listId } = getConfig();
+    const { listId } = getConfig();
     const dateFrom = document.getElementById('dateFrom').value;
     const dateTo = document.getElementById('dateTo').value;
 
@@ -162,9 +173,9 @@ async function fetchProgressData() {
             document.getElementById('loadingProgress').textContent =
                 `Loading page ${page + 1}... (${tasks.length} tasks so far)`;
 
-            const url = `https://api.clickup.com/api/v2/list/${listId}/task?page=${page}&subtasks=true&include_closed=true&date_updated_gt=${fromTs}&date_updated_lt=${toTs}`;
-
-            const res = await fetch(url, { headers: { 'Authorization': apiKey } });
+            const res = await clickupFetch(
+                `/api/v2/list/${listId}/task?page=${page}&subtasks=true&include_closed=true&date_updated_gt=${fromTs}&date_updated_lt=${toTs}`
+            );
 
             if (!res.ok) {
                 if (res.status === 401) throw new Error('Invalid API token.');

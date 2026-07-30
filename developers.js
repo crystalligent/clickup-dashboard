@@ -12,8 +12,24 @@
 //   but not the current assignee.
 // ============================================================
 
-const DEFAULT_API_KEY = 'pk_270739823_X5BBT5TZCSFD3OQJQX0GT5XVHJSS13DY';
 const DEFAULT_LIST_ID = '901609965646';
+
+// Use Netlify function proxy if available, otherwise fall back to direct API
+function getApiBase() {
+    if (window.location.hostname !== '' && window.location.protocol !== 'file:') {
+        return '/.netlify/functions/clickup-proxy?path=';
+    }
+    return null;
+}
+
+async function clickupFetch(apiPath) {
+    const proxyBase = getApiBase();
+    if (proxyBase) {
+        const res = await fetch(proxyBase + encodeURIComponent(apiPath));
+        return res;
+    }
+    throw new Error('This dashboard must be hosted on Netlify to access ClickUp data.');
+}
 
 // Development stages: statuses where developers are working on the task
 const DEV_STAGES = [
@@ -106,18 +122,29 @@ function populateRoleConfig() {
     const testers = getKnownTesters();
 
     document.getElementById('pmCheckboxes').innerHTML = sorted.map(name =>
-        `<label class="role-chip ${pms.includes(name) ? 'selected' : ''}" onclick="this.classList.toggle('selected')">
-            <input type="checkbox" value="${escapeHtml(name)}" ${pms.includes(name) ? 'checked' : ''} onchange="saveRoles()">
+        `<label class="role-chip ${pms.includes(name) ? 'selected' : ''}">
+            <input type="checkbox" value="${escapeHtml(name)}" ${pms.includes(name) ? 'checked' : ''}>
             <span>${escapeHtml(name)}</span>
         </label>`
     ).join('');
 
     document.getElementById('testerCheckboxes').innerHTML = sorted.map(name =>
-        `<label class="role-chip ${testers.includes(name) ? 'selected' : ''}" onclick="this.classList.toggle('selected')">
-            <input type="checkbox" value="${escapeHtml(name)}" ${testers.includes(name) ? 'checked' : ''} onchange="saveRoles()">
+        `<label class="role-chip ${testers.includes(name) ? 'selected' : ''}">
+            <input type="checkbox" value="${escapeHtml(name)}" ${testers.includes(name) ? 'checked' : ''}>
             <span>${escapeHtml(name)}</span>
         </label>`
     ).join('');
+
+    // Attach event listeners
+    document.querySelectorAll('#pmCheckboxes .role-chip, #testerCheckboxes .role-chip').forEach(chip => {
+        chip.addEventListener('click', function(e) {
+            e.preventDefault();
+            const cb = this.querySelector('input[type="checkbox"]');
+            cb.checked = !cb.checked;
+            this.classList.toggle('selected', cb.checked);
+            saveRoles();
+        });
+    });
 }
 
 function getDevelopers(task) {
@@ -132,9 +159,9 @@ function getDevelopers(task) {
         return currentAssignees.length > 0 ? currentAssignees : (task.creator ? [task.creator] : []);
     }
 
-    // 2. Task is in TESTING stages → assignee is the tester
+    // 2. Task is in TESTING stages → assignee might be the tester OR self-testing
     if (TESTING_STAGES.includes(status)) {
-        return getDevFromWatchers(task, currentAssigneeNames, projectManagers);
+        return getDevFromWatchers(task, currentAssigneeNames, projectManagers, true);
     }
 
     // 3. Task is in done/release stages
@@ -142,7 +169,8 @@ function getDevelopers(task) {
     const assigneeIsTester = currentAssigneeNames.some(name => knownTesters.includes(name));
 
     if (assigneeIsTester) {
-        return getDevFromWatchers(task, currentAssigneeNames, projectManagers);
+        // Assignee is definitely a tester → do NOT fall back to assignee
+        return getDevFromWatchers(task, currentAssigneeNames, projectManagers, false);
     }
 
     // Current assignee is the developer (they stayed assigned through completion)
@@ -155,7 +183,9 @@ function getDevelopers(task) {
 }
 
 // Helper: find developers from watchers list (excluding current assignees and PMs)
-function getDevFromWatchers(task, currentAssigneeNames, projectManagers) {
+// allowAssigneeFallback: if true, when no dev found in watchers, assume assignee is self-testing
+//                        if false, the assignee is definitely a tester, fall back to creator instead
+function getDevFromWatchers(task, currentAssigneeNames, projectManagers, allowAssigneeFallback) {
     const watchers = task.watchers || [];
 
     // Get watchers who are not the current assignee and not a PM
@@ -164,39 +194,45 @@ function getDevFromWatchers(task, currentAssigneeNames, projectManagers) {
         !projectManagers.includes(w.username)
     );
 
-    // If that yields nothing, try without PM filter
-    if (developers.length === 0) {
-        developers = watchers.filter(w => !currentAssigneeNames.includes(w.username));
+    if (developers.length > 0) {
+        return developers;
     }
 
-    // If still nothing, fallback to creator
-    if (developers.length === 0) {
-        return task.creator ? [task.creator] : [];
+    // No non-PM, non-assignee watchers found
+    if (allowAssigneeFallback) {
+        // Testing stage: assignee is likely self-testing (both dev and tester)
+        const assigneeObjects = (task.assignees || []);
+        if (assigneeObjects.length > 0) {
+            return assigneeObjects;
+        }
     }
 
-    return developers;
+    // Assignee is a known tester or no assignees available
+    // Try including PMs as last resort (PM might also be the dev)
+    let devsWithPM = watchers.filter(w => !currentAssigneeNames.includes(w.username));
+    if (devsWithPM.length > 0) {
+        return devsWithPM;
+    }
+
+    // Absolute fallback: creator
+    return task.creator ? [task.creator] : [];
 }
 
 // --- Config ---
 
 function getConfig() {
     return {
-        apiKey: localStorage.getItem('clickup_api_key') || DEFAULT_API_KEY,
         listId: localStorage.getItem('clickup_list_id') || DEFAULT_LIST_ID
     };
 }
 
 function loadConfig() {
-    const config = getConfig();
-    document.getElementById('apiKey').value = config.apiKey;
-    document.getElementById('listId').value = config.listId;
+    document.getElementById('listId').value = getConfig().listId;
 }
 
 function saveConfig() {
-    const apiKey = document.getElementById('apiKey').value.trim();
     const listId = document.getElementById('listId').value.trim();
-    if (!apiKey || !listId) return;
-    localStorage.setItem('clickup_api_key', apiKey);
+    if (!listId) return;
     localStorage.setItem('clickup_list_id', listId);
     toggleConfig();
 }
@@ -273,7 +309,7 @@ function formatDate(d) {
 // --- API ---
 
 async function fetchDevData() {
-    const { apiKey, listId } = getConfig();
+    const { listId } = getConfig();
     const dateFrom = document.getElementById('dateFrom').value;
     const dateTo = document.getElementById('dateTo').value;
 
@@ -297,8 +333,9 @@ async function fetchDevData() {
             document.getElementById('loadingProgress').textContent =
                 `Loading page ${page + 1}... (${tasks.length} tasks)`;
 
-            const url = `https://api.clickup.com/api/v2/list/${listId}/task?page=${page}&subtasks=true&include_closed=true&date_updated_gt=${fromTs}&date_updated_lt=${toTs}`;
-            const res = await fetch(url, { headers: { 'Authorization': apiKey } });
+            const res = await clickupFetch(
+                `/api/v2/list/${listId}/task?page=${page}&subtasks=true&include_closed=true&date_updated_gt=${fromTs}&date_updated_lt=${toTs}`
+            );
 
             if (!res.ok) {
                 if (res.status === 401) throw new Error('Invalid API token.');

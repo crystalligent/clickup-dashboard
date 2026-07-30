@@ -3,8 +3,26 @@
 // Pulls data from ClickUp API and renders PM analytics
 // ============================================================
 
-const DEFAULT_API_KEY = 'pk_270739823_X5BBT5TZCSFD3OQJQX0GT5XVHJSS13DY';
 const DEFAULT_LIST_ID = '901609965646';
+
+// Use Netlify function proxy if available, otherwise fall back to direct API
+function getApiBase() {
+    // If running on Netlify (or localhost with netlify dev), use the proxy
+    if (window.location.hostname !== '' && window.location.protocol !== 'file:') {
+        return '/.netlify/functions/clickup-proxy?path=';
+    }
+    return null; // direct mode
+}
+
+async function clickupFetch(apiPath) {
+    const proxyBase = getApiBase();
+    if (proxyBase) {
+        // Use Netlify function proxy (API key is server-side)
+        const res = await fetch(proxyBase + encodeURIComponent(apiPath));
+        return res;
+    }
+    throw new Error('This dashboard must be hosted on Netlify to access ClickUp data.');
+}
 
 let allTasks = [];
 let chartInstances = {};
@@ -52,22 +70,17 @@ const PHASE_ORDER = ['Review', 'Backlog', 'Development', 'Testing', 'Release Pip
 
 function getConfig() {
     return {
-        apiKey: localStorage.getItem('clickup_api_key') || DEFAULT_API_KEY,
         listId: localStorage.getItem('clickup_list_id') || DEFAULT_LIST_ID
     };
 }
 
 function loadConfig() {
-    const config = getConfig();
-    document.getElementById('apiKey').value = config.apiKey;
-    document.getElementById('listId').value = config.listId;
+    document.getElementById('listId').value = getConfig().listId;
 }
 
 function saveConfig() {
-    const apiKey = document.getElementById('apiKey').value.trim();
     const listId = document.getElementById('listId').value.trim();
-    if (!apiKey || !listId) { showError('API Key and List ID required.'); return; }
-    localStorage.setItem('clickup_api_key', apiKey);
+    if (!listId) { showError('List ID is required.'); return; }
     localStorage.setItem('clickup_list_id', listId);
     toggleConfig();
     fetchAllData();
@@ -81,7 +94,7 @@ function toggleConfig() {
 // --- API ---
 
 async function fetchAllData() {
-    const { apiKey, listId } = getConfig();
+    const { listId } = getConfig();
     showLoading(true);
     hideError();
 
@@ -94,9 +107,8 @@ async function fetchAllData() {
             document.getElementById('loadingProgress').textContent =
                 `Loading page ${page + 1}... (${tasks.length} tasks so far)`;
 
-            const res = await fetch(
-                `https://api.clickup.com/api/v2/list/${listId}/task?page=${page}&subtasks=true&include_closed=true`,
-                { headers: { 'Authorization': apiKey } }
+            const res = await clickupFetch(
+                `/api/v2/list/${listId}/task?page=${page}&subtasks=true&include_closed=true`
             );
 
             if (!res.ok) {

@@ -1,77 +1,73 @@
 # ClickUp Dashboard
 
-A static dashboard that pulls task data directly from your ClickUp lists and displays KPIs, charts, and a task table. Hosted for free on GitHub Pages or Netlify.
+A dashboard that pulls task data from ClickUp and displays project management analytics. Hosted on Netlify with API key secured server-side.
 
 ## Features
 
-- **KPI cards** — Total, Open, In Progress, Completed, Overdue tasks
-- **Status breakdown** — Doughnut chart with ClickUp's own status colors
-- **Priority distribution** — Bar chart by priority level
-- **Assignee workload** — Horizontal bar chart showing who has the most tasks
-- **Timeline** — Tasks created per week over time
-- **Filterable task table** — Filter by status or priority, links directly to ClickUp
+- **Main Dashboard** — KPIs, pipeline overview, status/priority/workload charts, task table
+- **Progress Tracker** — Filter tickets by date range to see team productivity
+- **Developer Progress** — Track developer output with smart attribution logic
+- **Configurable Roles** — Set PMs and testers from the UI to improve dev credit accuracy
 
 ## Setup
 
-### 1. Get your ClickUp API Token
+### 1. Deploy to Netlify
 
-1. Go to ClickUp → Settings → Apps
-2. Click "Generate" under API Token (or use an existing one)
-3. Copy the token (starts with `pk_`)
+1. Push this repo to GitHub
+2. Go to [app.netlify.com](https://app.netlify.com) → "Add new site" → Import from GitHub
+3. No build command needed — Netlify auto-detects the functions directory
 
-### 2. Get your List ID
+### 2. Set Environment Variable
+
+In Netlify: Site Settings → Environment Variables → Add:
+
+- **Key:** `CLICKUP_KEY`
+- **Value:** Your ClickUp API token (starts with `pk_`)
+
+### 3. Get your List ID
 
 1. Open the ClickUp list you want to track
-2. Click the `...` menu → "Copy Link"
-3. The List ID is the number in the URL: `https://app.clickup.com/9016594613/v/li/901611289144`
-   - In this example, List ID = `901611289144`
-
-### 3. Deploy
-
-#### Option A: GitHub Pages
-
-1. Create a new GitHub repository
-2. Push this folder to the repo:
-   ```bash
-   cd clickup-dashboard
-   git init
-   git add .
-   git commit -m "Initial dashboard"
-   git branch -M main
-   git remote add origin https://github.com/YOUR_USERNAME/clickup-dashboard.git
-   git push -u origin main
-   ```
-3. Go to repo Settings → Pages → Source: "Deploy from a branch" → Branch: `main`, folder: `/ (root)`
-4. Your dashboard will be live at `https://YOUR_USERNAME.github.io/clickup-dashboard/`
-
-#### Option B: Netlify
-
-1. Go to [app.netlify.com](https://app.netlify.com)
-2. Click "Add new site" → "Import an existing project" → connect your GitHub repo
-3. Build settings are already configured in `netlify.toml` (no build command needed)
-4. Click "Deploy site"
-5. Or drag-and-drop this entire folder onto Netlify's deploy page for instant deployment
+2. The List ID is in the URL: `https://app.clickup.com/9016594613/v/b/6-901609965646-2`
+   - List ID = `901609965646`
 
 ### 4. Configure the Dashboard
 
-1. Open the deployed dashboard URL
-2. Enter your ClickUp API Token and List ID in the config panel
-3. Click "Save & Load Data"
-4. Your credentials are stored in your browser's localStorage only — never sent to any server besides ClickUp's API
+1. Open your Netlify site URL
+2. Click ⚙️ Settings if you need to change the List ID
+3. On the Developer page, configure PM and Tester roles for accurate attribution
 
-## Security Notes
+## Architecture
 
-- API key is stored in **your browser's localStorage only**
-- All API calls go directly from your browser to `api.clickup.com`
-- No backend server, no data collection, no third-party analytics
-- Each user must enter their own API key (it's not shared)
+```
+Browser → Netlify Function (/.netlify/functions/clickup-proxy) → ClickUp API
+                                    ↑
+                          CLICKUP_KEY env var injected here
+```
 
-## CORS Note
+- The API key **never** reaches the browser
+- The Netlify function acts as a secure proxy
+- Only `/api/v2/` paths are allowed (prevents misuse)
 
-ClickUp's API supports CORS for browser-based requests, so this works directly from a static site without a proxy.
+## Security
 
-## Customization
+- API key stored exclusively in Netlify environment variables
+- Never exposed to frontend code or browser
+- Serverless function proxies all requests
+- No localStorage secrets, no client-side tokens
 
-- Edit `styles.css` to change colors/theme
-- Edit `app.js` to add more charts or change logic
-- Add more List IDs by modifying the fetch logic to pull from multiple lists
+## Local Development
+
+To run locally with Netlify CLI:
+
+```bash
+npm install -g netlify-cli
+netlify dev
+```
+
+This will inject the env variables locally and serve the functions.
+
+## Pages
+
+- `index.html` — Main dashboard with full overview
+- `progress.html` — Date-range filtered progress tracker
+- `developers.html` — Developer-specific progress with role configuration
