@@ -2,7 +2,14 @@
 // Developer Progress Page
 // Tracks tickets that progressed through development stages
 // (assigned to dev → done development → for testing in hotfix)
-// Developers = assignees during development stages
+//
+// Developer Attribution Logic:
+// - If a task is CURRENTLY in a dev stage → current assignee = developer
+// - If a task has MOVED PAST dev (testing/release/done) → the developer
+//   is identified from watchers: specifically, watchers who are NOT the
+//   current assignee are treated as the original developer(s).
+//   The creator is also considered the developer if they are a watcher
+//   but not the current assignee.
 // ============================================================
 
 const DEFAULT_API_KEY = 'pk_270739823_X5BBT5TZCSFD3OQJQX0GT5XVHJSS13DY';
@@ -42,6 +49,33 @@ let chartInstances = {};
 let currentSort = { field: 'updated', direction: 'desc' };
 let currentPage = 1;
 const PAGE_SIZE = 25;
+
+// --- Developer Attribution ---
+// For each task, determine who the developer(s) are.
+// Returns array of { username, color, initials } objects.
+
+function getDevelopers(task) {
+    const status = (task.status?.status || '').toLowerCase();
+    const currentAssignees = (task.assignees || []).map(a => a.username);
+
+    // If task is still in dev stages, current assignees ARE the developers
+    if (DEV_STAGES.includes(status)) {
+        return task.assignees || [];
+    }
+
+    // Task has moved past dev (testing/release/done)
+    // Developer = watchers who are NOT the current assignee (tester)
+    // This captures the original dev who worked on it before handoff
+    const watchers = task.watchers || [];
+    const developers = watchers.filter(w => !currentAssignees.includes(w.username));
+
+    // If no developers found via watchers (edge case), fall back to creator
+    if (developers.length === 0 && task.creator) {
+        return [task.creator];
+    }
+
+    return developers;
+}
 
 // --- Config ---
 
@@ -205,7 +239,7 @@ async function fetchDevData() {
 function populateExcludeCheckboxes() {
     const assignees = new Set();
     allFetchedDevTasks.forEach(t => {
-        (t.assignees || []).forEach(a => {
+        getDevelopers(t).forEach(a => {
             if (a.username) assignees.add(a.username);
         });
     });
@@ -240,17 +274,16 @@ function applyExclusions() {
         devTasks = [...allFetchedDevTasks];
     } else {
         devTasks = allFetchedDevTasks.filter(t => {
-            // Exclude tasks where ALL assignees are excluded
-            // If a task has at least one non-excluded assignee, keep it
-            const assignees = (t.assignees || []).map(a => a.username).filter(Boolean);
-            if (assignees.length === 0) return true; // keep unassigned
-            return assignees.some(name => !excludedAssignees.has(name));
+            // Exclude tasks where ALL developers are excluded
+            const devs = getDevelopers(t).map(a => a.username).filter(Boolean);
+            if (devs.length === 0) return true; // keep unassigned
+            return devs.some(name => !excludedAssignees.has(name));
         });
     }
 
     document.getElementById('dateRangeInfo').textContent =
         `${allFetchedDevTasks.length} in dev pipeline` +
-        (excludedAssignees.size > 0 ? ` → ${devTasks.length} after excluding ${excludedAssignees.size} assignee(s)` : '');
+        (excludedAssignees.size > 0 ? ` → ${devTasks.length} after excluding ${excludedAssignees.size} developer(s)` : '');
 }
 
 // --- Render ---
@@ -298,11 +331,12 @@ function renderDevBarChart() {
     const devCounts = {};
 
     devTasks.forEach(t => {
-        (t.assignees || []).forEach(a => {
+        const devs = getDevelopers(t);
+        devs.forEach(a => {
             const name = a.username || 'Unknown';
             devCounts[name] = (devCounts[name] || 0) + 1;
         });
-        if (!t.assignees?.length) {
+        if (devs.length === 0) {
             devCounts['Unassigned'] = (devCounts['Unassigned'] || 0) + 1;
         }
     });
@@ -338,7 +372,8 @@ function renderDevOutputChart() {
         const status = (t.status?.status || '').toLowerCase();
         const isPastDev = PAST_DEV_STATUSES.includes(status);
 
-        (t.assignees || []).forEach(a => {
+        const devs = getDevelopers(t);
+        devs.forEach(a => {
             const name = a.username || 'Unknown';
             if (!devData[name]) devData[name] = { done: 0, inProgress: 0 };
             if (isPastDev) {
@@ -434,7 +469,8 @@ function renderDevSpeedChart() {
         const days = (parseInt(t.date_updated) - parseInt(t.date_created)) / (1000 * 60 * 60 * 24);
         if (days < 0 || days > 180) return;
 
-        (t.assignees || []).forEach(a => {
+        const devs = getDevelopers(t);
+        devs.forEach(a => {
             const name = a.username || 'Unknown';
             if (!devTimes[name]) devTimes[name] = [];
             devTimes[name].push(days);
@@ -487,7 +523,8 @@ function renderDevGrid() {
         const isPastDev = PAST_DEV_STATUSES.includes(status);
         const isStillInDev = DEV_STAGES.includes(status);
 
-        (t.assignees || []).forEach(a => {
+        const devs = getDevelopers(t);
+        devs.forEach(a => {
             const name = a.username || 'Unknown';
             if (!devData[name]) {
                 devData[name] = {
@@ -584,7 +621,7 @@ function renderDevGrid() {
 // --- Table ---
 
 function populateFilters() {
-    const devs = [...new Set(devTasks.flatMap(t => (t.assignees || []).map(a => a.username)))].filter(Boolean).sort();
+    const devs = [...new Set(devTasks.flatMap(t => getDevelopers(t).map(a => a.username)))].filter(Boolean).sort();
     const stages = [...new Set(devTasks.map(t => t.status?.status || 'Unknown'))].sort();
 
     document.getElementById('filterDev').innerHTML =
@@ -600,7 +637,7 @@ function getFilteredTasks() {
 
     let filtered = devTasks;
 
-    if (devFilter) filtered = filtered.filter(t => t.assignees?.some(a => a.username === devFilter));
+    if (devFilter) filtered = filtered.filter(t => getDevelopers(t).some(a => a.username === devFilter));
     if (stageFilter) filtered = filtered.filter(t => (t.status?.status || 'Unknown') === stageFilter);
     if (search) filtered = filtered.filter(t => t.name.toLowerCase().includes(search));
 
@@ -626,7 +663,7 @@ function renderDevTable() {
         switch (currentSort.field) {
             case 'name': va = a.name; vb = b.name; break;
             case 'status': va = a.status?.orderindex || 0; vb = b.status?.orderindex || 0; break;
-            case 'assignee': va = a.assignees?.[0]?.username || 'zzz'; vb = b.assignees?.[0]?.username || 'zzz'; break;
+            case 'assignee': va = getDevelopers(a)?.[0]?.username || 'zzz'; vb = getDevelopers(b)?.[0]?.username || 'zzz'; break;
             case 'priority': va = a.priority?.orderindex || '99'; vb = b.priority?.orderindex || '99'; break;
             case 'updated': va = a.date_updated || '0'; vb = b.date_updated || '0'; break;
             case 'created': va = a.date_created || '0'; vb = b.date_created || '0'; break;
@@ -652,7 +689,8 @@ function renderDevTable() {
         const statusColor = task.status?.color || '#8b99a8';
         const priority = task.priority?.priority || '—';
         const priorityColor = task.priority?.color || '#5a6e82';
-        const assignees = task.assignees?.map(a => a.username).join(', ') || '—';
+        const devs = getDevelopers(task);
+        const devNames = devs.map(a => a.username).join(', ') || '—';
         const updated = task.date_updated ? new Date(parseInt(task.date_updated)).toLocaleDateString() : '—';
         const created = task.date_created ? new Date(parseInt(task.date_created)).toLocaleDateString() : '—';
         const url = task.url || '#';
@@ -663,7 +701,7 @@ function renderDevTable() {
         return `<tr>
             <td><a href="${url}" target="_blank" rel="noopener" class="task-link">${escapeHtml(task.name)}</a></td>
             <td><span class="status-badge" style="background:${statusColor}22;color:${statusColor}">${escapeHtml(status)}</span></td>
-            <td>${escapeHtml(assignees)}</td>
+            <td>${escapeHtml(devNames)}</td>
             <td><span class="priority-badge"><span class="priority-dot" style="background:${priorityColor}"></span>${escapeHtml(priority)}</span></td>
             <td>${tags || '—'}</td>
             <td>${updated}</td>
