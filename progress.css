@@ -1,0 +1,208 @@
+/* Progress Page Specific Styles */
+
+.date-range-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+}
+
+.date-range-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.preset-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface-2);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.15s;
+}
+
+.preset-btn:hover {
+    background: var(--surface-3);
+    color: var(--text);
+}
+
+.preset-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+.date-range-inputs {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.date-range-inputs .field {
+    min-width: 160px;
+    flex: 0;
+}
+
+.date-range-inputs input[type="date"] {
+    padding: 8px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 0.85rem;
+}
+
+.date-range-inputs input[type="date"]:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.date-range-info {
+    margin-top: 12px;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+/* Team Breakdown */
+.team-breakdown {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 16px;
+}
+
+.member-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+}
+
+.member-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.member-card-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.member-card-name {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.member-card-count {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.member-card-stats {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.member-stat {
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    text-align: center;
+    flex: 1;
+    min-width: 60px;
+}
+
+.member-stat-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.member-stat-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.member-tasks-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+}
+
+.member-task-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(42, 58, 74, 0.5);
+    font-size: 0.8rem;
+}
+
+.member-task-item:last-child {
+    border-bottom: none;
+}
+
+.member-task-item .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.member-task-item .task-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.member-task-item .task-name:hover {
+    color: var(--primary);
+}
+
+.member-task-item .task-status {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* Export button */
+.export-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+@media (max-width: 768px) {
+    .date-range-presets {
+        flex-wrap: wrap;
+    }
+    .date-range-inputs {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .team-breakdown {
+        grid-template-columns: 1fr;
+    }
+}
