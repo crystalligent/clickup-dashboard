@@ -157,18 +157,19 @@
                 <div class="table-card">
                     <div class="table-header">
                         <h3>Tickets with Progress</h3>
-                        <div class="table-filters">
-                            <select id="filterAssignee" onchange="renderProgressTable()">
-                                <option value="">All Assignees</option>
-                            </select>
-                            <select id="filterStatus" onchange="renderProgressTable()">
-                                <option value="">All Statuses</option>
-                            </select>
-                            <select id="filterTag" onchange="renderProgressTable()">
-                                <option value="">All Tags</option>
-                            </select>
-                            <input type="text" id="filterSearch" placeholder="Search..." oninput="renderProgressTable()" />
-                        </div>
+                        <button class="btn btn-export" onclick="exportToCSV()">📥 Export CSV</button>
+                    </div>
+                    <div class="table-filters">
+                        <select id="filterAssignee" onchange="renderProgressTable()">
+                            <option value="">All Assignees</option>
+                        </select>
+                        <select id="filterStatus" onchange="renderProgressTable()">
+                            <option value="">All Statuses</option>
+                        </select>
+                        <select id="filterTag" onchange="renderProgressTable()">
+                            <option value="">All Tags</option>
+                        </select>
+                        <input type="text" id="filterSearch" placeholder="Search..." oninput="renderProgressTable()" />
                     </div>
                     <div class="table-stats" id="tableStats"></div>
                     <div class="table-wrapper">
@@ -176,6 +177,7 @@
                             <thead>
                                 <tr>
                                     <th class="sortable" onclick="sortBy('name')">Task ↕</th>
+                                    <th>GitLab</th>
                                     <th class="sortable" onclick="sortBy('status')">Current Status ↕</th>
                                     <th class="sortable" onclick="sortBy('assignee')">Assignee ↕</th>
                                     <th class="sortable" onclick="sortBy('priority')">Priority ↕</th>

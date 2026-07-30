@@ -533,8 +533,12 @@ function renderProgressTable() {
             `<span class="tag-badge" style="background:${tag.tag_bg}33;color:${tag.tag_fg}">${escapeHtml(tag.name)}</span>`
         ).join('');
 
+        const gitlabId = getGitlabId(task.name);
+        const gitlabUrl = isGitlabUrl(task.name) ? task.name : '';
+
         return `<tr>
             <td><a href="${url}" target="_blank" rel="noopener" class="task-link">${escapeHtml(task.name)}</a></td>
+            <td>${gitlabUrl ? `<a href="${gitlabUrl}" target="_blank" rel="noopener" class="gitlab-btn">#${gitlabId}</a>` : '—'}</td>
             <td><span class="status-badge" style="background:${statusColor}22;color:${statusColor}">${escapeHtml(status)}</span></td>
             <td>${escapeHtml(assignees)}</td>
             <td><span class="priority-badge"><span class="priority-dot" style="background:${priorityColor}"></span>${escapeHtml(priority)}</span></td>
@@ -634,7 +638,57 @@ function renderTeamBreakdown() {
     }).join('');
 }
 
+// --- Export CSV ---
+
+function exportToCSV() {
+    const filtered = getFilteredTasks();
+
+    if (filtered.length === 0) {
+        alert('No data to export.');
+        return;
+    }
+
+    const headers = ['Task', 'URL', 'Current Status', 'Assignee', 'Priority', 'Tags', 'Last Updated', 'Created'];
+
+    const rows = filtered.map(task => {
+        const status = task.status?.status || '';
+        const assignees = (task.assignees || []).map(a => a.username).join('; ') || '';
+        const priority = task.priority?.priority || '';
+        const tags = (task.tags || []).map(t => t.name).join('; ') || '';
+        const updated = task.date_updated ? new Date(parseInt(task.date_updated)).toLocaleDateString() : '';
+        const created = task.date_created ? new Date(parseInt(task.date_created)).toLocaleDateString() : '';
+        const url = task.url || '';
+
+        return [task.name, url, status, assignees, priority, tags, updated, created];
+    });
+
+    const csvContent = [headers, ...rows]
+        .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+
+    const dateFrom = document.getElementById('dateFrom').value;
+    const dateTo = document.getElementById('dateTo').value;
+    const filename = `progress-report_${dateFrom}_to_${dateTo}.csv`;
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
 // --- Helpers ---
+
+function isGitlabUrl(name) {
+    return name && (name.includes('tools.iripple.com') || name.includes('gitlab.com')) && name.includes('/issues/');
+}
+
+function getGitlabId(name) {
+    if (!isGitlabUrl(name)) return '';
+    const parts = name.replace(/\s+/g, '').split('/');
+    return parts[parts.length - 1] || '';
+}
 
 function destroyChart(id) {
     if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }

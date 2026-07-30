@@ -266,3 +266,24 @@
 .exclude-chip.excluded .chip-x {
     opacity: 1;
 }
+
+
+/* Export Button */
+.btn-export {
+    background: var(--success-soft);
+    border-color: var(--success);
+    color: var(--success);
+    font-weight: 600;
+}
+
+.btn-export:hover {
+    background: var(--success);
+    color: #fff;
+}
+
+.table-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}

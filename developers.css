@@ -386,3 +386,17 @@
     color: var(--text-dim);
     font-style: italic;
 }
+
+
+/* Export Button */
+.btn-export {
+    background: rgba(0, 214, 143, 0.12);
+    border-color: #00d68f;
+    color: #00d68f;
+    font-weight: 600;
+}
+
+.btn-export:hover {
+    background: #00d68f;
+    color: #fff;
+}

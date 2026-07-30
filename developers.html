@@ -183,15 +183,16 @@
                 <div class="table-card">
                     <div class="table-header">
                         <h3>Developer Task List</h3>
-                        <div class="table-filters">
-                            <select id="filterDev" onchange="renderDevTable()">
-                                <option value="">All Developers</option>
-                            </select>
-                            <select id="filterStage" onchange="renderDevTable()">
-                                <option value="">All Stages</option>
-                            </select>
-                            <input type="text" id="filterSearch" placeholder="Search..." oninput="renderDevTable()" />
-                        </div>
+                        <button class="btn btn-export" onclick="exportToCSV()">📥 Export CSV</button>
+                    </div>
+                    <div class="table-filters">
+                        <select id="filterDev" onchange="renderDevTable()">
+                            <option value="">All Developers</option>
+                        </select>
+                        <select id="filterStage" onchange="renderDevTable()">
+                            <option value="">All Stages</option>
+                        </select>
+                        <input type="text" id="filterSearch" placeholder="Search..." oninput="renderDevTable()" />
                     </div>
                     <div class="table-stats" id="tableStats"></div>
                     <div class="table-wrapper">
@@ -199,6 +200,7 @@
                             <thead>
                                 <tr>
                                     <th class="sortable" onclick="sortBy('name')">Task ↕</th>
+                                    <th>GitLab</th>
                                     <th class="sortable" onclick="sortBy('status')">Current Status ↕</th>
                                     <th class="sortable" onclick="sortBy('assignee')">Developer ↕</th>
                                     <th class="sortable" onclick="sortBy('priority')">Priority ↕</th>
