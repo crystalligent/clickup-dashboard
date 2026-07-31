@@ -37,7 +37,7 @@
 # Clean URL for manual sync trigger
 [[redirects]]
   from = "/api/sync"
-  to = "/.netlify/functions/sync-gitlab"
+  to = "/.netlify/functions/sync-trigger"
   status = 200
 
 # Clean URL for logs API

@@ -3,7 +3,7 @@
  */
 
 const LOGS_API = '/.netlify/functions/logs-store';
-const SYNC_API = '/.netlify/functions/sync-gitlab';
+const SYNC_API = '/.netlify/functions/sync-trigger';
 const PAGE_SIZE = 30;
 
 let allLogs = [];
