@@ -119,7 +119,7 @@ async function getExistingTaskMap() {
 
 // ─── GitLab API ────────────────────────────────────────────────────────────────
 
-async function getIssuesByMilestone(milestoneName, since) {
+async function getIssuesByMilestone(milestoneName, since, { useCreatedAfter = false } = {}) {
   const gitlabUrl = getEnv('GITLAB_URL');
   const token = getEnv('GITLAB_TOKEN');
   const projectId = getEnv('GITLAB_PROJECT_ID');
@@ -131,7 +131,8 @@ async function getIssuesByMilestone(milestoneName, since) {
     let url = `${gitlabUrl}/api/v4/projects/${projectId}/issues?milestone=${encodeURIComponent(milestoneName)}&state=opened&per_page=100&page=${page}`;
 
     if (since) {
-      url += `&updated_after=${since.toISOString()}`;
+      const filterParam = useCreatedAfter ? 'created_after' : 'updated_after';
+      url += `&${filterParam}=${since.toISOString()}`;
     }
 
     const res = await fetch(url, {
@@ -256,10 +257,15 @@ exports.handler = async (event) => {
     let since = null;
 
     const isFullSync = event.queryStringParameters?.full === 'true';
+    const sinceParam = event.queryStringParameters?.since || '';
 
     if (isFullSync) {
       since = null;
       console.log('[sync-trigger] Full sync — no date filter');
+    } else if (sinceParam) {
+      // User-specified date (format: YYYY-MM-DD)
+      since = new Date(sinceParam + 'T00:00:00.000Z');
+      console.log(`[sync-trigger] Sync from user-specified date: ${since.toISOString()}`);
     } else if (lastSync) {
       since = new Date(lastSync.getTime() - bufferDays * 24 * 60 * 60 * 1000);
       console.log(`[sync-trigger] Incremental sync since: ${since.toISOString()}`);
@@ -274,8 +280,9 @@ exports.handler = async (event) => {
 
     // Fetch issues from GitLab
     let allIssues = [];
+    const useCreatedAfter = !!sinceParam; // user-specified date = filter by creation date
     for (const milestone of milestoneNames) {
-      const issues = await getIssuesByMilestone(milestone, since);
+      const issues = await getIssuesByMilestone(milestone, since, { useCreatedAfter });
       console.log(`[sync-trigger] "${milestone}": ${issues.length} issues`);
       allIssues = allIssues.concat(issues);
     }

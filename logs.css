@@ -394,3 +394,39 @@
         gap: 10px;
     }
 }
+
+/* Date Sync Panel */
+.date-sync-panel {
+    background: var(--surface);
+    border: 1px solid var(--primary);
+    border-radius: var(--radius);
+    padding: 14px 22px;
+    margin-bottom: 20px;
+}
+
+.date-sync-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.date-sync-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.date-sync-content input[type="date"] {
+    padding: 7px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 0.85rem;
+}
+
+.date-sync-content input[type="date"]:focus {
+    outline: none;
+    border-color: var(--primary);
+}

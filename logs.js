@@ -51,6 +51,23 @@ async function triggerFullSync() {
   await doSync('fullSyncBtn', `${SYNC_API}?full=true`, 'Sync All');
 }
 
+function showDateSync() {
+  document.getElementById('dateSyncPanel').style.display = 'block';
+}
+
+function hideDateSync() {
+  document.getElementById('dateSyncPanel').style.display = 'none';
+}
+
+async function triggerDateSync() {
+  const dateInput = document.getElementById('syncFromDate').value;
+  if (!dateInput) {
+    alert('Please select a date.');
+    return;
+  }
+  await doSync('dateSyncBtn', `${SYNC_API}?since=${dateInput}`, 'Run Sync');
+}
+
 async function doSync(btnId, url, label) {
   const btn = document.getElementById(btnId);
   btn.classList.add('btn-syncing');

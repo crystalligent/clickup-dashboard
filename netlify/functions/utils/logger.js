@@ -1,14 +1,16 @@
 /**
- * Shared logger utility — writes to Netlify Blobs in production,
- * falls back to a local JSON file in dev.
+ * Shared logger utility.
+ * 
+ * In production: POSTs logs to the logs-store function via HTTP (same site).
+ * This ensures consistent storage since logs-store manages the blob store.
+ * 
+ * In local dev: writes to /tmp file directly.
  */
 
 const path = require('path');
 const fs = require('fs');
 
 const MAX_LOGS = 500;
-const STORE_NAME = 'sync-logs';
-const INDEX_KEY = 'log-index';
 const LOCAL_LOG_FILE = path.join('/tmp', 'clickup-sync-logs.json');
 
 // ─── Local file helpers ────────────────────────────────────────────────────────
@@ -48,25 +50,23 @@ async function logRun(entry) {
 
   console.log(`[sync-log] ${logEntry.source} | ${logEntry.action} | ${logEntry.status} | issue #${logEntry.issueIid || '-'}`);
 
-  // Try Netlify Blobs first (production)
-  try {
-    const { getStore } = require('@netlify/blobs');
-    const store = getStore(STORE_NAME);
-    let logs = [];
+  // In production: POST to the logs-store function endpoint
+  const siteUrl = process.env.URL || process.env.DEPLOY_URL || '';
+  if (siteUrl) {
     try {
-      logs = (await store.get(INDEX_KEY, { type: 'json' })) || [];
+      const res = await fetch(`${siteUrl}/.netlify/functions/logs-store`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(logEntry),
+      });
+      if (res.ok) return;
+      console.log(`[sync-log] POST to logs-store failed: ${res.status}`);
     } catch (e) {
-      logs = [];
+      console.log(`[sync-log] POST to logs-store error: ${e.message}`);
     }
-    logs.unshift(logEntry);
-    if (logs.length > MAX_LOGS) logs = logs.slice(0, MAX_LOGS);
-    await store.setJSON(INDEX_KEY, logs);
-    return;
-  } catch (e) {
-    // Blobs not available — use local file
   }
 
-  // Local dev fallback: write to /tmp file
+  // Local dev fallback: write directly to /tmp file
   let logs = readLocalLogs();
   logs.unshift(logEntry);
   if (logs.length > MAX_LOGS) logs = logs.slice(0, MAX_LOGS);

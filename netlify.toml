@@ -10,12 +10,19 @@
 [functions."sync-gitlab"]
   schedule = "*/5 * * * *"
   node_bundler = "esbuild"
-  # Allow up to 5 minutes for bulk sync (first run may have many issues)
   external_node_modules = ["@netlify/blobs"]
 
-[functions."sync-gitlab".timeout]
-  # Netlify Pro allows 26s max; on free tier it's 10s. Local dev: 30s.
-  # The function handles large batches gracefully.
+[functions."sync-trigger"]
+  node_bundler = "esbuild"
+  external_node_modules = ["@netlify/blobs"]
+
+[functions."logs-store"]
+  node_bundler = "esbuild"
+  external_node_modules = ["@netlify/blobs"]
+
+[functions."gitlab-webhook"]
+  node_bundler = "esbuild"
+  external_node_modules = ["@netlify/blobs"]
 
 [dev]
   # Increase local dev function timeout to 120 seconds

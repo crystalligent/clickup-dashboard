@@ -21,6 +21,7 @@ async function getLogs() {
     const data = await store.get('log-index', { type: 'json' });
     return data || [];
   } catch (e) {
+    console.log('[logs-store] Blobs read failed:', e.message);
     return readLocalLogs();
   }
 }
@@ -31,6 +32,7 @@ async function saveLogs(logs) {
     const store = getStore('sync-logs');
     await store.setJSON('log-index', logs);
   } catch (e) {
+    console.log('[logs-store] Blobs write failed:', e.message);
     writeLocalLogs(logs);
   }
 }
