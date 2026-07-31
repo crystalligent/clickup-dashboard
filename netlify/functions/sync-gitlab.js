@@ -209,41 +209,30 @@ async function syncIssue(issue, existingTaskMap) {
   if (existing) {
     const taskId = existing.id;
 
+    // Determine what the ClickUp status SHOULD be based on GitLab labels
+    let expectedStatus = null;
     if (labelsContainText(labels, 'Released')) {
-      await clickupRequest('PUT', `/task/${taskId}`, { name: taskName, status: 'Released to Prod' });
-      await logRun({
-        source: 'scheduled', action: 'updated', status: 'success',
-        duration: Date.now() - startTime,
-        issueIid: issue.iid, issueTitle: issue.title,
-        clickupTaskId: taskId, clickupStatus: 'Released to Prod',
-        milestone: milestoneName, labels: labels.map((l) => l.title),
-      });
-      return { iid: issue.iid, action: 'updated', status: 'Released to Prod' };
+      expectedStatus = 'Released to Prod';
+    } else if (labelsContainText(labels, 'For Release')) {
+      expectedStatus = 'For release';
     }
 
-    if (labelsContainText(labels, 'For Release')) {
-      await clickupRequest('PUT', `/task/${taskId}`, { name: taskName, status: 'For release' });
-      await logRun({
-        source: 'scheduled', action: 'updated', status: 'success',
-        duration: Date.now() - startTime,
-        issueIid: issue.iid, issueTitle: issue.title,
-        clickupTaskId: taskId, clickupStatus: 'For release',
-        milestone: milestoneName, labels: labels.map((l) => l.title),
-      });
-      return { iid: issue.iid, action: 'updated', status: 'For release' };
-    }
+    // Build update payload — only include fields that changed
+    const updates = {};
+    if (existing.name !== taskName) updates.name = taskName;
+    if (expectedStatus && existing.status !== expectedStatus) updates.status = expectedStatus;
 
-    // Update name if changed
-    if (existing.name !== taskName) {
-      await clickupRequest('PUT', `/task/${taskId}`, { name: taskName });
+    if (Object.keys(updates).length > 0) {
+      await clickupRequest('PUT', `/task/${taskId}`, updates);
+      const statusNote = updates.status || 'name update only';
       await logRun({
         source: 'scheduled', action: 'updated', status: 'success',
         duration: Date.now() - startTime,
         issueIid: issue.iid, issueTitle: issue.title,
-        clickupTaskId: taskId, clickupStatus: 'name update only',
+        clickupTaskId: taskId, clickupStatus: statusNote,
         milestone: milestoneName, labels: labels.map((l) => l.title),
       });
-      return { iid: issue.iid, action: 'updated', status: 'name only' };
+      return { iid: issue.iid, action: 'updated', status: statusNote };
     }
 
     return { iid: issue.iid, skipped: true, reason: 'already exists, no changes' };
