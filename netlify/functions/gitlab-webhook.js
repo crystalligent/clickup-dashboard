@@ -232,10 +232,15 @@ exports.handler = async (event) => {
   const qaMilestone = getEnv('QA_MILESTONE_ID', '756');
   const defaultAssignee = process.env.DEFAULT_ASSIGNEE_ID;
 
+  // Determine status based on labels first, then milestone
   let status;
   let assigneeIds = [];
 
-  if (milestoneId === qaMilestone) {
+  if (labelsContainText(labels, '"title":"Released"')) {
+    status = 'Released to Prod';
+  } else if (labelsContainText(labels, 'For Release')) {
+    status = 'For release';
+  } else if (milestoneId === qaMilestone) {
     status = 'pending review (qa)';
     if (defaultAssignee) {
       assigneeIds = [parseInt(defaultAssignee, 10)];

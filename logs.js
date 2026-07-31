@@ -43,28 +43,60 @@ async function loadLogs() {
 // ─── Manual Sync ───────────────────────────────────────────────────────────────
 
 async function triggerManualSync() {
-  const btn = document.getElementById('syncBtn');
+  await doSync('syncBtn', SYNC_API, 'Manual Sync');
+}
+
+async function triggerFullSync() {
+  if (!confirm('This will sync ALL open issues across all milestones (ignoring last sync date). Existing tasks in ClickUp will be skipped. Continue?')) return;
+  await doSync('fullSyncBtn', `${SYNC_API}?full=true`, 'Sync All');
+}
+
+async function doSync(btnId, url, label) {
+  const btn = document.getElementById(btnId);
   btn.classList.add('btn-syncing');
   btn.textContent = '⏳ Syncing...';
 
   try {
-    const res = await fetch(SYNC_API);
-    const data = await res.json();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120000); // 2 min timeout
 
-    btn.textContent = `✅ Done (${data.synced || 0} issues)`;
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    // Netlify CLI may return empty body for scheduled functions
+    let data = {};
+    const text = await res.text();
+    if (text) {
+      try { data = JSON.parse(text); } catch (e) { /* ignore parse errors */ }
+    }
+
+    const count = data.created || data.synced || '✓';
+    btn.textContent = `✅ Done (${count} synced)`;
     setTimeout(() => {
-      btn.textContent = '⚡ Manual Sync';
+      btn.textContent = btnId === 'syncBtn' ? '⚡ Manual Sync' : '🔄 Sync All';
       btn.classList.remove('btn-syncing');
     }, 3000);
 
     // Reload logs after sync
     setTimeout(loadLogs, 1500);
   } catch (err) {
-    btn.textContent = '❌ Failed';
-    setTimeout(() => {
-      btn.textContent = '⚡ Manual Sync';
-      btn.classList.remove('btn-syncing');
-    }, 3000);
+    // If aborted (timeout) — the sync is still running server-side
+    if (err.name === 'AbortError') {
+      btn.textContent = '⏳ Still running...';
+      setTimeout(() => {
+        btn.textContent = btnId === 'syncBtn' ? '⚡ Manual Sync' : '🔄 Sync All';
+        btn.classList.remove('btn-syncing');
+        loadLogs(); // Load whatever logs were created
+      }, 5000);
+    } else {
+      btn.textContent = '❌ Failed';
+      setTimeout(() => {
+        btn.textContent = btnId === 'syncBtn' ? '⚡ Manual Sync' : '🔄 Sync All';
+        btn.classList.remove('btn-syncing');
+      }, 3000);
+    }
+    // Still try loading logs — the function may have partially succeeded
+    setTimeout(loadLogs, 2000);
   }
 }
 

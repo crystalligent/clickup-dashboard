@@ -6,8 +6,20 @@
   NODE_VERSION = "18"
 
 # Scheduled function: sync GitLab issues every 5 minutes
+# Note: in local dev, hit GET /api/sync manually. In production Netlify runs this on schedule.
 [functions."sync-gitlab"]
   schedule = "*/5 * * * *"
+  node_bundler = "esbuild"
+  # Allow up to 5 minutes for bulk sync (first run may have many issues)
+  external_node_modules = ["@netlify/blobs"]
+
+[functions."sync-gitlab".timeout]
+  # Netlify Pro allows 26s max; on free tier it's 10s. Local dev: 30s.
+  # The function handles large batches gracefully.
+
+[dev]
+  # Increase local dev function timeout to 120 seconds
+  functions-timeout = 120
 
 [[headers]]
   for = "/*"
