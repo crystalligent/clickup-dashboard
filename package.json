@@ -1,0 +1,12 @@
+{
+  "name": "clickup-dashboard",
+  "version": "1.0.0",
+  "description": "ClickUp Dashboard + GitLab Integration with sync logs",
+  "private": true,
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^21.6.0"
+  }
+}

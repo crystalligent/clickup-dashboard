@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sync Logs — GitLab to ClickUp</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="logs.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1>Sync Logs</h1>
+                <span class="subtitle">GitLab → ClickUp Integration Monitor</span>
+            </div>
+            <div class="header-right">
+                <span class="last-updated" id="lastRefresh">—</span>
+                <a href="index.html" class="btn">← Dashboard</a>
+                <button class="btn" onclick="triggerManualSync()" id="syncBtn">⚡ Manual Sync</button>
+                <button class="btn btn-primary" onclick="loadLogs()" id="refreshBtn">↻ Refresh</button>
+            </div>
+        </header>
+
+        <!-- Status Bar -->
+        <section class="section">
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="status-dot status-dot-active"></span>
+                    <span>Scheduled sync: every 5 minutes</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-dot status-dot-active"></span>
+                    <span>Webhook: listening at <code>/webhook/gitlab</code></span>
+                </div>
+                <div class="status-item" id="lastRunStatus">
+                    <span class="status-dot status-dot-idle"></span>
+                    <span>Last run: —</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Summary KPIs -->
+        <section class="section">
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-icon">📊</div>
+                    <div class="kpi-content">
+                        <div class="kpi-value" id="totalRuns">0</div>
+                        <div class="kpi-label">Total Runs</div>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-done">
+                    <div class="kpi-icon">✅</div>
+                    <div class="kpi-content">
+                        <div class="kpi-value" id="successRuns">0</div>
+                        <div class="kpi-label">Successful</div>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-blocked">
+                    <div class="kpi-icon">❌</div>
+                    <div class="kpi-content">
+                        <div class="kpi-value" id="errorRuns">0</div>
+                        <div class="kpi-label">Errors</div>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">⏭️</div>
+                    <div class="kpi-content">
+                        <div class="kpi-value" id="skippedRuns">0</div>
+                        <div class="kpi-label">Skipped</div>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-active">
+                    <div class="kpi-icon">🆕</div>
+                    <div class="kpi-content">
+                        <div class="kpi-value" id="createdCount">0</div>
+                        <div class="kpi-label">Tasks Created</div>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-rate">
+                    <div class="kpi-icon">🔄</div>
+                    <div class="kpi-content">
+                        <div class="kpi-value" id="updatedCount">0</div>
+                        <div class="kpi-label">Tasks Updated</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Filters -->
+        <section class="section">
+            <div class="filters-bar">
+                <div class="filter-group">
+                    <label>Source</label>
+                    <select id="filterSource" onchange="renderLogs()">
+                        <option value="">All Sources</option>
+                        <option value="webhook">Webhook</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="manual">Manual</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Status</label>
+                    <select id="filterStatus" onchange="renderLogs()">
+                        <option value="">All</option>
+                        <option value="success">Success</option>
+                        <option value="error">Error</option>
+                        <option value="skipped">Skipped</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Action</label>
+                    <select id="filterAction" onchange="renderLogs()">
+                        <option value="">All Actions</option>
+                        <option value="created">Created</option>
+                        <option value="updated">Updated</option>
+                        <option value="skipped">Skipped</option>
+                        <option value="error">Error</option>
+                    </select>
+                </div>
+                <div class="filter-group filter-search">
+                    <label>Search</label>
+                    <input type="text" id="filterSearch" placeholder="Issue IID, title..." oninput="renderLogs()" />
+                </div>
+                <div class="filter-group">
+                    <button class="btn btn-sm btn-danger" onclick="clearLogs()">🗑️ Clear Logs</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Loading -->
+        <div class="loading" id="loading" style="display:none;">
+            <div class="spinner"></div>
+            <p>Loading logs...</p>
+        </div>
+
+        <!-- Error -->
+        <div class="error" id="error" style="display:none;"></div>
+
+        <!-- Logs Timeline -->
+        <section class="section" id="logsSection" style="display:none;">
+            <div class="logs-count" id="logsCount"></div>
+            <div class="logs-timeline" id="logsTimeline"></div>
+            <div class="table-pagination" id="logsPagination"></div>
+        </section>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState" style="display:none;">
+            <div class="empty-icon">📋</div>
+            <h3>No logs yet</h3>
+            <p>Logs will appear here once the webhook receives events or the scheduled sync runs.</p>
+            <button class="btn btn-primary" onclick="triggerManualSync()">⚡ Trigger Manual Sync</button>
+        </div>
+    </div>
+
+    <script src="logs.js"></script>
+</body>
+</html>

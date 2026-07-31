@@ -1,73 +1,116 @@
-# ClickUp Dashboard
+# ClickUp Dashboard + GitLab Integration
 
-A dashboard that pulls task data from ClickUp and displays project management analytics. Hosted on Netlify with API key secured server-side.
+A Netlify-deployed service that syncs GitLab issues to ClickUp tasks — no execution limits, no credits, runs free on Netlify's generous function tier.
 
-## Features
+## Architecture
 
-- **Main Dashboard** — KPIs, pipeline overview, status/priority/workload charts, task table
-- **Progress Tracker** — Filter tickets by date range to see team productivity
-- **Developer Progress** — Track developer output with smart attribution logic
-- **Configurable Roles** — Set PMs and testers from the UI to improve dev credit accuracy
+This replaces the Activepieces "GitLab to ClickUp" flow with two Netlify serverless functions:
+
+| Function | Trigger | Purpose |
+|----------|---------|---------|
+| `gitlab-webhook` | GitLab Issue webhook (POST) | Real-time sync when issues are created/updated |
+| `sync-gitlab` | Every 5 minutes (scheduled) + manual GET | Polls GitLab for recently updated issues as a fallback |
+
+No external database or Google Sheets needed — the functions check your ClickUp list directly to determine if a task already exists.
+
+### Flow Logic
+
+```
+GitLab Issue Event
+  │
+  ├─ Filter: only allowed milestones (802, 752, 756)
+  │
+  ├─ Lookup: search ClickUp list for existing task (by IID prefix in name)
+  │
+  ├─ If task exists in ClickUp:
+  │     ├─ "Released" label    → update status to "Released to Prod"
+  │     ├─ "For Release" label → update status to "For release"
+  │     └─ Other               → update task name only
+  │
+  └─ If new task:
+        ├─ Milestone 756 → create with status "pending review (qa)" + assignee
+        └─ Other         → create with status "Open"
+```
 
 ## Setup
 
 ### 1. Deploy to Netlify
 
-1. Push this repo to GitHub
-2. Go to [app.netlify.com](https://app.netlify.com) → "Add new site" → Import from GitHub
-3. No build command needed — Netlify auto-detects the functions directory
-
-### 2. Set Environment Variable
-
-In Netlify: Site Settings → Environment Variables → Add:
-
-- **Key:** `CLICKUP_KEY`
-- **Value:** Your ClickUp API token (starts with `pk_`)
-
-### 3. Get your List ID
-
-1. Open the ClickUp list you want to track
-2. The List ID is in the URL: `https://app.clickup.com/9016594613/v/b/6-901609965646-2`
-   - List ID = `901609965646`
-
-### 4. Configure the Dashboard
-
-1. Open your Netlify site URL
-2. Click ⚙️ Settings if you need to change the List ID
-3. On the Developer page, configure PM and Tester roles for accurate attribution
-
-## Architecture
-
-```
-Browser → Netlify Function (/.netlify/functions/clickup-proxy) → ClickUp API
-                                    ↑
-                          CLICKUP_KEY env var injected here
-```
-
-- The API key **never** reaches the browser
-- The Netlify function acts as a secure proxy
-- Only `/api/v2/` paths are allowed (prevents misuse)
-
-## Security
-
-- API key stored exclusively in Netlify environment variables
-- Never exposed to frontend code or browser
-- Serverless function proxies all requests
-- No localStorage secrets, no client-side tokens
-
-## Local Development
-
-To run locally with Netlify CLI:
-
 ```bash
-npm install -g netlify-cli
-netlify dev
+# From the clickup-dashboard directory
+netlify deploy --prod
 ```
 
-This will inject the env variables locally and serve the functions.
+Or connect this repo to Netlify via the dashboard for automatic deploys.
+
+### 2. Set Environment Variables
+
+In **Netlify Dashboard → Site → Environment Variables**, add:
+
+| Variable | Description |
+|----------|-------------|
+| `CLICKUP_KEY` | ClickUp API token (pk_...) |
+| `CLICKUP_LIST_ID` | List ID where tasks are created and searched |
+| `DEFAULT_ASSIGNEE_ID` | Assignee for QA tasks (optional) |
+| `GITLAB_WEBHOOK_SECRET` | Secret to validate webhook requests |
+| `GITLAB_URL` | GitLab base URL (e.g. https://tools.iripple.com) |
+| `GITLAB_TOKEN` | GitLab personal access token (read_api scope) |
+| `GITLAB_PROJECT_ID` | Project ID to poll |
+| `ALLOWED_MILESTONES` | Comma-separated milestone IDs (e.g. 802,752,756) |
+| `QA_MILESTONE_ID` | Milestone ID for "pending review (qa)" status |
+
+### 3. Configure GitLab Webhook
+
+In your GitLab project → Settings → Webhooks:
+
+- **URL**: `https://your-site.netlify.app/webhook/gitlab`
+- **Secret token**: same value as `GITLAB_WEBHOOK_SECRET`
+- **Trigger**: ✅ Issues events
+- **SSL verification**: ✅ Enable
+
+## Endpoints
+
+| URL | Method | Purpose |
+|-----|--------|---------|
+| `/webhook/gitlab` | POST | GitLab webhook receiver |
+| `/api/sync` | GET | Manual sync trigger |
+| `/api/logs` | GET | Retrieve sync run history |
 
 ## Pages
 
-- `index.html` — Main dashboard with full overview
-- `progress.html` — Date-range filtered progress tracker
-- `developers.html` — Developer-specific progress with role configuration
+| Page | Description |
+|------|-------------|
+| `index.html` | Main ClickUp task dashboard |
+| `progress.html` | Team progress tracker |
+| `developers.html` | Developer task view |
+| `logs.html` | Sync monitoring — run history, errors, and stats |
+
+## Netlify Free Tier Limits
+
+- **Functions**: 125K invocations/month, 100 hours compute
+- **Scheduled functions**: included in the above
+- At 5-min intervals = ~8,640 scheduled runs/month (well within limits)
+
+Compare to Activepieces free: 100 runs total. This setup gives you effectively **unlimited** runs.
+
+## Local Development
+
+```bash
+# Install Netlify CLI
+npm install -g netlify-cli
+
+# Create a .env file from the example
+cp .env.example .env
+# Fill in your actual values
+
+# Run locally
+netlify dev
+```
+
+Test the webhook locally:
+```bash
+curl -X POST http://localhost:8888/webhook/gitlab \
+  -H "Content-Type: application/json" \
+  -H "X-Gitlab-Token: core-ripple" \
+  -d @../gitlab-update.json
+```

@@ -2,9 +2,34 @@
   publish = "."
   functions = "netlify/functions"
 
+[build.environment]
+  NODE_VERSION = "18"
+
+# Scheduled function: sync GitLab issues every 5 minutes
+[functions."sync-gitlab"]
+  schedule = "*/5 * * * *"
+
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Clean URL for the GitLab webhook endpoint
+[[redirects]]
+  from = "/webhook/gitlab"
+  to = "/.netlify/functions/gitlab-webhook"
+  status = 200
+
+# Clean URL for manual sync trigger
+[[redirects]]
+  from = "/api/sync"
+  to = "/.netlify/functions/sync-gitlab"
+  status = 200
+
+# Clean URL for logs API
+[[redirects]]
+  from = "/api/logs"
+  to = "/.netlify/functions/logs-store"
+  status = 200
