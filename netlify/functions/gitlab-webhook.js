@@ -104,7 +104,7 @@ async function findExistingTask(gitlabIid) {
   return null;
 }
 
-async function createClickUpTask(issue, status, assigneeIds) {
+async function createClickUpTask(issue, status, assigneeIds, tags) {
   const listId = getEnv('CLICKUP_LIST_ID');
   const taskName = `${issue.iid} - ${issue.title} : ${issue.url}`;
 
@@ -113,6 +113,7 @@ async function createClickUpTask(issue, status, assigneeIds) {
     description: issue.description || '',
     status,
     assignees: assigneeIds || [],
+    tags: tags || [],
   };
 
   return clickupRequest('POST', `/list/${listId}/task`, body);
@@ -124,20 +125,36 @@ async function updateClickUpTask(taskId, updates) {
 
 // ─── Label Detection ───────────────────────────────────────────────────────────
 
-function labelsContainText(labels, text) {
-  const str = JSON.stringify(labels);
-  return str.includes(text);
+// ─── Label Detection ───────────────────────────────────────────────────────────
+
+function hasLabel(labels, title) {
+  return labels.some((l) => l.title === title);
+}
+
+function getExpectedStatus(labels, issueState) {
+  if (issueState === 'closed') return 'Closed';
+  if (hasLabel(labels, 'Released')) return 'Released to Prod';
+  if (hasLabel(labels, 'For Release')) return 'For release';
+  if (hasLabel(labels, 'Done') || hasLabel(labels, 'Done Development')) return 'Done Development';
+  if (hasLabel(labels, 'For Testing')) return 'For Testing in Hotfix';
+  if (hasLabel(labels, 'Ongoing Testing')) return 'Ongoing Testing';
+  if (hasLabel(labels, 'Escalated to Dev')) return 'Testing Failed';
+  return null;
+}
+
+function getExpectedTags(labels) {
+  const tags = [];
+  if (hasLabel(labels, 'Data Correction')) tags.push('data correction');
+  return tags;
 }
 
 // ─── Main Handler ──────────────────────────────────────────────────────────────
 
 exports.handler = async (event) => {
-  // Only accept POST
   if (event.httpMethod !== 'POST') {
     return jsonResponse(405, { error: 'Method not allowed' });
   }
 
-  // Validate GitLab webhook secret
   const secret = process.env.GITLAB_WEBHOOK_SECRET;
   if (secret) {
     const token = event.headers['x-gitlab-token'];
@@ -153,7 +170,6 @@ exports.handler = async (event) => {
     return jsonResponse(400, { error: 'Invalid JSON body' });
   }
 
-  // Only handle issue events
   if (payload.object_kind !== 'issue') {
     return jsonResponse(200, { skipped: true, reason: 'Not an issue event' });
   }
@@ -161,6 +177,7 @@ exports.handler = async (event) => {
   const issue = payload.object_attributes;
   const labels = payload.labels || [];
   const assignees = payload.assignees || [];
+  const issueState = issue.state || 'opened';
 
   // Filter by allowed milestones
   const allowedMilestones = getEnv('ALLOWED_MILESTONES', '802,752,756')
@@ -182,75 +199,55 @@ exports.handler = async (event) => {
     });
   }
 
-  // Look up existing task directly in ClickUp list
   const existingTask = await findExistingTask(issue.iid);
   const taskName = `${issue.iid} - ${issue.title} : ${issue.url}`;
+  const expectedStatus = getExpectedStatus(labels, issueState);
+  const expectedTags = getExpectedTags(labels);
+  const startTime = Date.now();
 
   if (existingTask) {
-    // ─── Task exists: determine what to update ───
+    // ─── Task exists: update status/name/tags ───
     const taskId = existingTask.id;
-    const startTime = Date.now();
+    const updates = {};
 
-    if (labelsContainText(labels, '"title":"Released"')) {
-      await updateClickUpTask(taskId, { name: taskName, status: 'Released to Prod' });
-      await logRun({
-        source: 'webhook', action: 'updated', status: 'success',
-        duration: Date.now() - startTime,
-        issueIid: issue.iid, issueTitle: issue.title,
-        clickupTaskId: taskId, clickupStatus: 'Released to Prod',
-        milestone: milestoneId, labels: labels.map((l) => l.title),
-      });
-      return jsonResponse(200, { action: 'updated', status: 'Released to Prod', taskId });
+    updates.name = taskName;
+    if (expectedStatus) updates.status = expectedStatus;
+
+    await updateClickUpTask(taskId, updates);
+
+    // Add tags
+    for (const tag of expectedTags) {
+      try {
+        await clickupRequest('POST', `/task/${taskId}/tag/${encodeURIComponent(tag)}`, {});
+      } catch (e) { /* tag may already exist */ }
     }
 
-    if (labelsContainText(labels, 'For Release')) {
-      await updateClickUpTask(taskId, { name: taskName, status: 'For release' });
-      await logRun({
-        source: 'webhook', action: 'updated', status: 'success',
-        duration: Date.now() - startTime,
-        issueIid: issue.iid, issueTitle: issue.title,
-        clickupTaskId: taskId, clickupStatus: 'For release',
-        milestone: milestoneId, labels: labels.map((l) => l.title),
-      });
-      return jsonResponse(200, { action: 'updated', status: 'For release', taskId });
-    }
-
-    // Default: just update the task name
-    await updateClickUpTask(taskId, { name: taskName });
+    const statusNote = updates.status || 'name update only';
     await logRun({
       source: 'webhook', action: 'updated', status: 'success',
       duration: Date.now() - startTime,
       issueIid: issue.iid, issueTitle: issue.title,
-      clickupTaskId: taskId, clickupStatus: 'name update only',
+      clickupTaskId: taskId, clickupStatus: statusNote,
       milestone: milestoneId, labels: labels.map((l) => l.title),
     });
-    return jsonResponse(200, { action: 'updated', status: 'name only', taskId });
+    return jsonResponse(200, { action: 'updated', status: statusNote, taskId });
   }
 
   // ─── Task doesn't exist: create it ───
-  const startTime = Date.now();
   const qaMilestone = getEnv('QA_MILESTONE_ID', '756');
   const defaultAssignee = process.env.DEFAULT_ASSIGNEE_ID;
+  const listId = getEnv('CLICKUP_LIST_ID');
 
-  // Determine status based on labels first, then milestone
-  let status;
+  let status = expectedStatus || 'Open';
   let assigneeIds = [];
 
-  if (labelsContainText(labels, '"title":"Released"')) {
-    status = 'Released to Prod';
-  } else if (labelsContainText(labels, 'For Release')) {
-    status = 'For release';
-  } else if (milestoneId === qaMilestone) {
+  if (!expectedStatus && milestoneId === qaMilestone) {
     status = 'pending review (qa)';
-    if (defaultAssignee) {
-      assigneeIds = [parseInt(defaultAssignee, 10)];
-    }
-  } else {
-    status = 'Open';
+    if (defaultAssignee) assigneeIds = [parseInt(defaultAssignee, 10)];
   }
 
   try {
-    const newTask = await createClickUpTask(issue, status, assigneeIds);
+    const newTask = await createClickUpTask(issue, status, assigneeIds, expectedTags);
 
     await logRun({
       source: 'webhook', action: 'created', status: 'success',
@@ -260,12 +257,7 @@ exports.handler = async (event) => {
       milestone: milestoneId, labels: labels.map((l) => l.title),
     });
 
-    return jsonResponse(201, {
-      action: 'created',
-      taskId: newTask.id,
-      status,
-      name: taskName,
-    });
+    return jsonResponse(201, { action: 'created', taskId: newTask.id, status, name: taskName });
   } catch (err) {
     await logRun({
       source: 'webhook', action: 'created', status: 'error',

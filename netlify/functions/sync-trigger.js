@@ -128,7 +128,7 @@ async function getIssuesByMilestone(milestoneName, since, { useCreatedAfter = fa
   let page = 1;
 
   while (true) {
-    let url = `${gitlabUrl}/api/v4/projects/${projectId}/issues?milestone=${encodeURIComponent(milestoneName)}&state=opened&per_page=100&page=${page}`;
+    let url = `${gitlabUrl}/api/v4/projects/${projectId}/issues?milestone=${encodeURIComponent(milestoneName)}&per_page=100&page=${page}`;
 
     if (since) {
       const filterParam = useCreatedAfter ? 'created_after' : 'updated_after';
@@ -157,8 +157,35 @@ async function getIssuesByMilestone(milestoneName, since, { useCreatedAfter = fa
 
 // ─── Label Detection ───────────────────────────────────────────────────────────
 
-function labelsContainText(labels, text) {
-  return JSON.stringify(labels).includes(text);
+function hasLabel(labels, title) {
+  return labels.some((l) => l.title === title);
+}
+
+/**
+ * Determine the ClickUp status based on GitLab labels.
+ * Priority order (first match wins):
+ */
+function getExpectedStatus(labels, issueState) {
+  // Closed GitLab issue → closed in ClickUp
+  if (issueState === 'closed') return 'Closed';
+
+  if (hasLabel(labels, 'Released')) return 'Released to Prod';
+  if (hasLabel(labels, 'For Release')) return 'For release';
+  if (hasLabel(labels, 'Done') || hasLabel(labels, 'Done Development')) return 'Done Development';
+  if (hasLabel(labels, 'For Testing')) return 'For Testing in Hotfix';
+  if (hasLabel(labels, 'Ongoing Testing')) return 'Ongoing Testing';
+  if (hasLabel(labels, 'Escalated to Dev')) return 'Testing Failed';
+
+  return null; // no label-based status change
+}
+
+/**
+ * Determine tags to add to the ClickUp task based on GitLab labels.
+ */
+function getExpectedTags(labels) {
+  const tags = [];
+  if (hasLabel(labels, 'Data Correction')) tags.push('data correction');
+  return tags;
 }
 
 // ─── Sync Logic ────────────────────────────────────────────────────────────────
@@ -170,28 +197,37 @@ async function syncIssue(issue, existingTaskMap) {
   const taskName = `${issue.iid} - ${issue.title} : ${issue.web_url}`;
   const milestoneId = issue.milestone ? String(issue.milestone.id) : '';
   const milestoneName = issue.milestone ? issue.milestone.title : '';
+  const issueState = issue.state || 'opened';
+
+  const expectedStatus = getExpectedStatus(labels, issueState);
+  const expectedTags = getExpectedTags(labels);
 
   const existing = existingTaskMap.get(iidStr);
 
   if (existing) {
     const taskId = existing.id;
 
-    // Determine expected status based on GitLab labels
-    let expectedStatus = null;
-    if (labelsContainText(labels, 'Released')) {
-      expectedStatus = 'Released to Prod';
-    } else if (labelsContainText(labels, 'For Release')) {
-      expectedStatus = 'For release';
-    }
-
     // Build update payload — only include fields that changed
     const updates = {};
     if (existing.name !== taskName) updates.name = taskName;
     if (expectedStatus && existing.status !== expectedStatus) updates.status = expectedStatus;
 
-    if (Object.keys(updates).length > 0) {
-      await clickupRequest('PUT', `/task/${taskId}`, updates);
-      const statusNote = updates.status || 'name update only';
+    // Add tags if needed (ClickUp API: POST /task/{id}/tag/{tag_name})
+    let tagsAdded = [];
+    for (const tag of expectedTags) {
+      try {
+        await clickupRequest('POST', `/task/${taskId}/tag/${encodeURIComponent(tag)}`, {});
+        tagsAdded.push(tag);
+      } catch (e) {
+        // Tag might already exist — ignore errors
+      }
+    }
+
+    if (Object.keys(updates).length > 0 || tagsAdded.length > 0) {
+      if (Object.keys(updates).length > 0) {
+        await clickupRequest('PUT', `/task/${taskId}`, updates);
+      }
+      const statusNote = updates.status || (tagsAdded.length > 0 ? `tags: ${tagsAdded.join(', ')}` : 'name update only');
       await logRun({
         source: 'manual', action: 'updated', status: 'success',
         duration: Date.now() - startTime,
@@ -210,14 +246,11 @@ async function syncIssue(issue, existingTaskMap) {
   const defaultAssignee = process.env.DEFAULT_ASSIGNEE_ID;
   const listId = getEnv('CLICKUP_LIST_ID');
 
-  let status = 'Open';
+  // Determine status: label-based first, then milestone fallback
+  let status = expectedStatus || 'Open';
   let assigneeIds = [];
 
-  if (labelsContainText(labels, 'Released')) {
-    status = 'Released to Prod';
-  } else if (labelsContainText(labels, 'For Release')) {
-    status = 'For release';
-  } else if (milestoneId === qaMilestoneId) {
+  if (!expectedStatus && milestoneId === qaMilestoneId) {
     status = 'pending review (qa)';
     if (defaultAssignee) assigneeIds = [parseInt(defaultAssignee, 10)];
   }
@@ -227,6 +260,7 @@ async function syncIssue(issue, existingTaskMap) {
     description: issue.description || '',
     status,
     assignees: assigneeIds,
+    tags: expectedTags,
   });
 
   await logRun({
