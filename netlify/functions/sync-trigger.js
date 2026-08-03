@@ -173,7 +173,8 @@ function getExpectedStatus(labels, issueState) {
   if (hasLabel(labels, 'For Release')) return 'For release';
   if (hasLabel(labels, 'Done') || hasLabel(labels, 'Done Development')) return 'Done Development';
   if (hasLabel(labels, 'For Testing')) return 'For Testing in Hotfix';
-  if (hasLabel(labels, 'Ongoing Testing')) return 'Ongoing Testing';
+  if (hasLabel(labels, 'On-Going Testing')) return 'Ongoing Testing';
+  if (hasLabel(labels, 'On-Going Development')) return 'Ongoing Development';
   if (hasLabel(labels, 'Escalated to Dev')) return 'Testing Failed';
 
   return null; // no label-based status change
