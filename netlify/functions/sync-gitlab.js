@@ -195,13 +195,13 @@ function hasLabel(labels, title) {
 
 function getExpectedStatus(labels, issueState) {
   if (issueState === 'closed') return 'Closed';
-  if (hasLabel(labels, 'Released')) return 'Released to Prod';
-  if (hasLabel(labels, 'For Release')) return 'For release';
-  if (hasLabel(labels, 'Done') || hasLabel(labels, 'Done Development')) return 'Done Development';
-  if (hasLabel(labels, 'For Testing')) return 'For Testing in Hotfix';
-  if (hasLabel(labels, 'On-Going Testing')) return 'Ongoing Testing';
-  if (hasLabel(labels, 'On-Going Development')) return 'Ongoing Development';
-  if (hasLabel(labels, 'Escalated to Dev')) return 'Testing: Failed';
+  if (hasLabel(labels, 'Released')) return 'released to prod';
+  if (hasLabel(labels, 'For Release')) return 'for release';
+  if (hasLabel(labels, 'Done') || hasLabel(labels, 'Done Development')) return 'done development';
+  if (hasLabel(labels, 'For Testing')) return 'for testing in hotfix';
+  if (hasLabel(labels, 'On-Going Testing')) return 'ongoing testing';
+  if (hasLabel(labels, 'On-Going Development')) return 'ongoing dev';
+  if (hasLabel(labels, 'Escalated to Dev')) return 'testing: failed';
   return null;
 }
 
