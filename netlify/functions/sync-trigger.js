@@ -155,6 +155,29 @@ async function getIssuesByMilestone(milestoneName, since, { useCreatedAfter = fa
   return allIssues;
 }
 
+// ─── Assignee Mapping (GitLab username → ClickUp member ID) ────────────────────
+
+const ASSIGNEE_MAP = {
+  'agregorio': 89084186,    // Anriette Chyle Gregorio → AC Gregorio
+  'atacipit': 100808559,    // Arvin Tacipit
+  'bviloria': 3798865,      // Ben Viloria
+  'cdimalanta': 270739823,  // Crystal Grace Dimalanta
+  'dcomia': 95085613,       // Diana Rose Comia
+  'emonding': 100842272,    // EJ Monding → Emil John Monding
+  'jsacay': 94935510,       // Jan Marzeus Sacay
+  'jgregorio': 89079122,    // Jomar Gregorio
+  'mtanqueco': 3827858,     // Mikee Dorina Tanqueco
+  'pcabalo': 89084187,      // Phillip Val Cabalo
+  'rmendoza': 276899809,    // Ryzell Rowayne Mendoza → Wayne Mendoza
+};
+
+function getClickUpAssignees(gitlabAssignees) {
+  if (!gitlabAssignees || gitlabAssignees.length === 0) return [];
+  return gitlabAssignees
+    .map((a) => ASSIGNEE_MAP[a.username])
+    .filter(Boolean);
+}
+
 // ─── Label Detection ───────────────────────────────────────────────────────────
 
 function hasLabel(labels, title) {
@@ -202,6 +225,7 @@ async function syncIssue(issue, existingTaskMap) {
 
   const expectedStatus = getExpectedStatus(labels, issueState);
   const expectedTags = getExpectedTags(labels);
+  const clickupAssignees = getClickUpAssignees(issue.assignees || []);
 
   const existing = existingTaskMap.get(iidStr);
 
@@ -212,6 +236,11 @@ async function syncIssue(issue, existingTaskMap) {
     const updates = {};
     if (existing.name !== taskName) updates.name = taskName;
     if (expectedStatus && existing.status !== expectedStatus) updates.status = expectedStatus;
+
+    // Sync assignees
+    if (clickupAssignees.length > 0) {
+      updates.assignees = { add: clickupAssignees };
+    }
 
     // Add tags if needed (ClickUp API: POST /task/{id}/tag/{tag_name})
     let tagsAdded = [];
@@ -249,11 +278,13 @@ async function syncIssue(issue, existingTaskMap) {
 
   // Determine status: label-based first, then milestone fallback
   let status = expectedStatus || 'Open';
-  let assigneeIds = [];
+  let assigneeIds = clickupAssignees.length > 0 ? clickupAssignees : [];
 
   if (!expectedStatus && milestoneId === qaMilestoneId) {
     status = 'pending review (qa)';
-    if (defaultAssignee) assigneeIds = [parseInt(defaultAssignee, 10)];
+    if (assigneeIds.length === 0 && defaultAssignee) {
+      assigneeIds = [parseInt(defaultAssignee, 10)];
+    }
   }
 
   const newTask = await clickupRequest('POST', `/list/${listId}/task`, {

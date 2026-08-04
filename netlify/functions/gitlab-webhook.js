@@ -125,6 +125,29 @@ async function updateClickUpTask(taskId, updates) {
 
 // ─── Label Detection ───────────────────────────────────────────────────────────
 
+// ─── Assignee Mapping (GitLab username → ClickUp member ID) ────────────────────
+
+const ASSIGNEE_MAP = {
+  'agregorio': 89084186,
+  'atacipit': 100808559,
+  'bviloria': 3798865,
+  'cdimalanta': 270739823,
+  'dcomia': 95085613,
+  'emonding': 100842272,
+  'jsacay': 94935510,
+  'jgregorio': 89079122,
+  'mtanqueco': 3827858,
+  'pcabalo': 89084187,
+  'rmendoza': 276899809,
+};
+
+function getClickUpAssignees(gitlabAssignees) {
+  if (!gitlabAssignees || gitlabAssignees.length === 0) return [];
+  return gitlabAssignees
+    .map((a) => ASSIGNEE_MAP[a.username])
+    .filter(Boolean);
+}
+
 // ─── Label Detection ───────────────────────────────────────────────────────────
 
 function hasLabel(labels, title) {
@@ -204,15 +227,17 @@ exports.handler = async (event) => {
   const taskName = `${issue.iid} - ${issue.title} : ${issue.url}`;
   const expectedStatus = getExpectedStatus(labels, issueState);
   const expectedTags = getExpectedTags(labels);
+  const clickupAssignees = getClickUpAssignees(assignees);
   const startTime = Date.now();
 
   if (existingTask) {
-    // ─── Task exists: update status/name/tags ───
+    // ─── Task exists: update status/name/tags/assignees ───
     const taskId = existingTask.id;
     const updates = {};
 
     updates.name = taskName;
     if (expectedStatus) updates.status = expectedStatus;
+    if (clickupAssignees.length > 0) updates.assignees = { add: clickupAssignees };
 
     await updateClickUpTask(taskId, updates);
 
@@ -240,11 +265,13 @@ exports.handler = async (event) => {
   const listId = getEnv('CLICKUP_LIST_ID');
 
   let status = expectedStatus || 'Open';
-  let assigneeIds = [];
+  let assigneeIds = clickupAssignees.length > 0 ? clickupAssignees : [];
 
   if (!expectedStatus && milestoneId === qaMilestone) {
     status = 'pending review (qa)';
-    if (defaultAssignee) assigneeIds = [parseInt(defaultAssignee, 10)];
+    if (assigneeIds.length === 0 && defaultAssignee) {
+      assigneeIds = [parseInt(defaultAssignee, 10)];
+    }
   }
 
   try {

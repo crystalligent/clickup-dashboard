@@ -187,6 +187,29 @@ async function getIssuesByMilestone(milestoneName, since) {
   return allIssues;
 }
 
+// ─── Assignee Mapping (GitLab username → ClickUp member ID) ────────────────────
+
+const ASSIGNEE_MAP = {
+  'agregorio': 89084186,
+  'atacipit': 100808559,
+  'bviloria': 3798865,
+  'cdimalanta': 270739823,
+  'dcomia': 95085613,
+  'emonding': 100842272,
+  'jsacay': 94935510,
+  'jgregorio': 89079122,
+  'mtanqueco': 3827858,
+  'pcabalo': 89084187,
+  'rmendoza': 276899809,
+};
+
+function getClickUpAssignees(gitlabAssignees) {
+  if (!gitlabAssignees || gitlabAssignees.length === 0) return [];
+  return gitlabAssignees
+    .map((a) => ASSIGNEE_MAP[a.username])
+    .filter(Boolean);
+}
+
 // ─── Label Detection ───────────────────────────────────────────────────────────
 
 function hasLabel(labels, title) {
@@ -224,6 +247,7 @@ async function syncIssue(issue, existingTaskMap) {
 
   const expectedStatus = getExpectedStatus(labels, issueState);
   const expectedTags = getExpectedTags(labels);
+  const clickupAssignees = getClickUpAssignees(issue.assignees || []);
 
   const existing = existingTaskMap.get(iidStr);
 
@@ -233,6 +257,11 @@ async function syncIssue(issue, existingTaskMap) {
     const updates = {};
     if (existing.name !== taskName) updates.name = taskName;
     if (expectedStatus && existing.status !== expectedStatus) updates.status = expectedStatus;
+
+    // Sync assignees
+    if (clickupAssignees.length > 0) {
+      updates.assignees = { add: clickupAssignees };
+    }
 
     let tagsAdded = [];
     for (const tag of expectedTags) {
@@ -266,11 +295,13 @@ async function syncIssue(issue, existingTaskMap) {
   const listId = getEnv('CLICKUP_LIST_ID');
 
   let status = expectedStatus || 'Open';
-  let assigneeIds = [];
+  let assigneeIds = clickupAssignees.length > 0 ? clickupAssignees : [];
 
   if (!expectedStatus && milestoneId === qaMilestoneId) {
     status = 'pending review (qa)';
-    if (defaultAssignee) assigneeIds = [parseInt(defaultAssignee, 10)];
+    if (assigneeIds.length === 0 && defaultAssignee) {
+      assigneeIds = [parseInt(defaultAssignee, 10)];
+    }
   }
 
   const newTask = await clickupRequest('POST', `/list/${listId}/task`, {
