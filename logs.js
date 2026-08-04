@@ -1,5 +1,5 @@
 /**
- * Logs Monitor — Frontend for viewing GitLab→ClickUp sync history
+ * Logs Monitor — Frontend for viewing GitLab to ClickUp sync history
  */
 
 const LOGS_API = '/.netlify/functions/logs-store';
@@ -10,10 +10,51 @@ let allLogs = [];
 let filteredLogs = [];
 let currentPage = 1;
 
+// ─── Authentication ────────────────────────────────────────────────────────────
+
+function getStoredPassword() {
+  return sessionStorage.getItem('logs-auth') || '';
+}
+
+function authenticate() {
+  const password = document.getElementById('loginPassword').value;
+  if (!password) return;
+
+  // Verify against server
+  fetch(`${SYNC_API}?verify=true`, {
+    headers: { 'X-Sync-Password': password }
+  }).then((res) => {
+    if (res.status === 401) {
+      document.getElementById('loginError').style.display = 'block';
+      document.getElementById('loginPassword').value = '';
+    } else {
+      sessionStorage.setItem('logs-auth', password);
+      document.getElementById('loginGate').style.display = 'none';
+      document.getElementById('mainApp').style.display = 'block';
+      loadLogs();
+    }
+  }).catch(() => {
+    document.getElementById('loginError').style.display = 'block';
+  });
+}
+
+function checkAuth() {
+  const saved = sessionStorage.getItem('logs-auth');
+  if (saved) {
+    document.getElementById('loginGate').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    loadLogs();
+    return true;
+  }
+  return false;
+}
+
 // ─── Init ──────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
-  loadLogs();
+  if (!checkAuth()) {
+    document.getElementById('loginGate').style.display = 'flex';
+  }
 });
 
 // ─── Fetch Logs ────────────────────────────────────────────────────────────────
@@ -40,14 +81,14 @@ async function loadLogs() {
   }
 }
 
-// ─── Manual Sync ───────────────────────────────────────────────────────────────
+// ─── Sync Actions ──────────────────────────────────────────────────────────────
 
 async function triggerManualSync() {
   await doSync('syncBtn', SYNC_API, 'Manual Sync');
 }
 
 async function triggerFullSync() {
-  if (!confirm('This will sync ALL open issues across all milestones (ignoring last sync date). Existing tasks in ClickUp will be skipped. Continue?')) return;
+  if (!confirm('This will sync ALL issues across all milestones. Continue?')) return;
   await doSync('fullSyncBtn', `${SYNC_API}?full=true`, 'Sync All');
 }
 
@@ -71,50 +112,63 @@ async function triggerDateSync() {
 async function doSync(btnId, url, label) {
   const btn = document.getElementById(btnId);
   btn.classList.add('btn-syncing');
-  btn.textContent = '⏳ Syncing...';
+  btn.textContent = '\u23F3 Syncing...';
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 120000); // 2 min timeout
+    const timeout = setTimeout(() => controller.abort(), 120000);
 
-    const res = await fetch(url, { signal: controller.signal });
+    const password = getStoredPassword();
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'X-Sync-Password': password }
+    });
     clearTimeout(timeout);
 
-    // Netlify CLI may return empty body for scheduled functions
+    if (res.status === 401) {
+      sessionStorage.removeItem('logs-auth');
+      location.reload();
+      return;
+    }
+
     let data = {};
     const text = await res.text();
     if (text) {
-      try { data = JSON.parse(text); } catch (e) { /* ignore parse errors */ }
+      try { data = JSON.parse(text); } catch (e) { /* ignore */ }
     }
 
-    const count = data.created || data.synced || '✓';
-    btn.textContent = `✅ Done (${count} synced)`;
+    const count = data.created || data.synced || '\u2713';
+    btn.textContent = '\u2705 Done (' + count + ' synced)';
     setTimeout(() => {
-      btn.textContent = btnId === 'syncBtn' ? '⚡ Manual Sync' : '🔄 Sync All';
+      btn.textContent = getButtonLabel(btnId);
       btn.classList.remove('btn-syncing');
     }, 3000);
 
-    // Reload logs after sync
     setTimeout(loadLogs, 1500);
   } catch (err) {
-    // If aborted (timeout) — the sync is still running server-side
     if (err.name === 'AbortError') {
-      btn.textContent = '⏳ Still running...';
+      btn.textContent = '\u23F3 Still running...';
       setTimeout(() => {
-        btn.textContent = btnId === 'syncBtn' ? '⚡ Manual Sync' : '🔄 Sync All';
+        btn.textContent = getButtonLabel(btnId);
         btn.classList.remove('btn-syncing');
-        loadLogs(); // Load whatever logs were created
+        loadLogs();
       }, 5000);
     } else {
-      btn.textContent = '❌ Failed';
+      btn.textContent = '\u274C Failed';
       setTimeout(() => {
-        btn.textContent = btnId === 'syncBtn' ? '⚡ Manual Sync' : '🔄 Sync All';
+        btn.textContent = getButtonLabel(btnId);
         btn.classList.remove('btn-syncing');
       }, 3000);
     }
-    // Still try loading logs — the function may have partially succeeded
     setTimeout(loadLogs, 2000);
   }
+}
+
+function getButtonLabel(btnId) {
+  if (btnId === 'syncBtn') return '\u26A1 Manual Sync';
+  if (btnId === 'fullSyncBtn') return '\uD83D\uDD04 Sync All';
+  if (btnId === 'dateSyncBtn') return '\uD83D\uDE80 Run Sync';
+  return 'Sync';
 }
 
 // ─── Clear Logs ────────────────────────────────────────────────────────────────
@@ -153,15 +207,14 @@ function updateKPIs() {
 function updateLastRunStatus() {
   const el = document.getElementById('lastRunStatus');
   if (allLogs.length === 0) {
-    el.innerHTML = '<span class="status-dot status-dot-idle"></span><span>Last run: —</span>';
+    el.innerHTML = '<span class="status-dot status-dot-idle"></span><span>Last run: \u2014</span>';
     return;
   }
 
   const last = allLogs[0];
   const dotClass = last.status === 'error' ? 'status-dot-error' : 'status-dot-active';
   const timeStr = formatRelativeTime(new Date(last.timestamp));
-
-  el.innerHTML = `<span class="status-dot ${dotClass}"></span><span>Last run: ${timeStr} (${last.source})</span>`;
+  el.innerHTML = '<span class="status-dot ' + dotClass + '"></span><span>Last run: ' + timeStr + ' (' + last.source + ')</span>';
 }
 
 // ─── Filter & Render ───────────────────────────────────────────────────────────
@@ -177,8 +230,8 @@ function renderLogs() {
     if (status && log.status !== status) return false;
     if (action && log.action !== action) return false;
     if (search) {
-      const searchStr = `${log.issueIid || ''} ${log.issueTitle || ''} ${log.clickupTaskId || ''} ${log.error || ''}`.toLowerCase();
-      if (!searchStr.includes(search)) return false;
+      const searchStr = (log.issueIid || '') + ' ' + (log.issueTitle || '') + ' ' + (log.clickupTaskId || '') + ' ' + (log.error || '');
+      if (!searchStr.toLowerCase().includes(search)) return false;
     }
     return true;
   });
@@ -195,171 +248,100 @@ function renderLogs() {
   logsSection.style.display = 'block';
   emptyState.style.display = 'none';
 
-  document.getElementById('logsCount').textContent = `Showing ${filteredLogs.length} of ${allLogs.length} log entries`;
+  document.getElementById('logsCount').textContent = 'Showing ' + filteredLogs.length + ' of ' + allLogs.length + ' log entries';
 
-  // Paginate
   const totalPages = Math.ceil(filteredLogs.length / PAGE_SIZE);
   if (currentPage > totalPages) currentPage = 1;
   const start = (currentPage - 1) * PAGE_SIZE;
   const pageItems = filteredLogs.slice(start, start + PAGE_SIZE);
 
-  // Render entries
   const timeline = document.getElementById('logsTimeline');
   timeline.innerHTML = pageItems.map((log) => renderLogEntry(log)).join('');
-
-  // Render pagination
   renderPagination(totalPages);
 }
 
 function renderLogEntry(log) {
-  const sourceClass = `log-source-${log.source}`;
-  const actionClass = `log-action-${log.action}`;
-  const statusClass = `log-${log.status}`;
-
-  const sourceIcon = log.source === 'webhook' ? '🔔' : log.source === 'scheduled' ? '⏰' : '👆';
-  const actionIcon = log.action === 'created' ? '✨' : log.action === 'updated' ? '📝' : log.action === 'skipped' ? '⏭️' : '❌';
+  const statusClass = 'log-' + log.status;
+  const sourceIcon = log.source === 'webhook' ? '\uD83D\uDD14' : log.source === 'scheduled' ? '\u23F0' : '\uD83D\uDC46';
+  const actionIcon = log.action === 'created' ? '\u2728' : log.action === 'updated' ? '\uD83D\uDCDD' : log.action === 'skipped' ? '\u23ED\uFE0F' : '\u274C';
 
   const title = log.issueTitle
-    ? `#${log.issueIid} — ${log.issueTitle}`
+    ? '#' + log.issueIid + ' \u2014 ' + log.issueTitle
     : log.issueIid
-      ? `Issue #${log.issueIid}`
+      ? 'Issue #' + log.issueIid
       : log.action === 'error' ? 'Error occurred' : 'No issue data';
 
-  const duration = log.duration ? `${log.duration}ms` : '';
+  const duration = log.duration ? log.duration + 'ms' : '';
 
   let details = '';
-  if (log.clickupTaskId) {
-    details += `<span class="log-detail"><span class="log-detail-label">Task:</span> <span class="log-detail-value">${log.clickupTaskId}</span></span>`;
-  }
-  if (log.clickupStatus) {
-    details += `<span class="log-detail"><span class="log-detail-label">Status:</span> <span class="log-detail-value">${log.clickupStatus}</span></span>`;
-  }
-  if (log.milestone) {
-    details += `<span class="log-detail"><span class="log-detail-label">Milestone:</span> <span class="log-detail-value">${log.milestone}</span></span>`;
-  }
-  if (duration) {
-    details += `<span class="log-detail"><span class="log-detail-label">Duration:</span> <span class="log-duration">${duration}</span></span>`;
-  }
+  if (log.clickupTaskId) details += '<span class="log-detail"><span class="log-detail-label">Task:</span> <span class="log-detail-value">' + log.clickupTaskId + '</span></span>';
+  if (log.clickupStatus) details += '<span class="log-detail"><span class="log-detail-label">Status:</span> <span class="log-detail-value">' + log.clickupStatus + '</span></span>';
+  if (log.milestone) details += '<span class="log-detail"><span class="log-detail-label">Milestone:</span> <span class="log-detail-value">' + log.milestone + '</span></span>';
+  if (duration) details += '<span class="log-detail"><span class="log-detail-label">Duration:</span> <span class="log-duration">' + duration + '</span></span>';
 
   const labelsHtml = (log.labels && log.labels.length > 0)
-    ? `<div class="log-labels">${log.labels.map((l) => `<span class="log-label-tag">${escapeHtml(l)}</span>`).join('')}</div>`
+    ? '<div class="log-labels">' + log.labels.map((l) => '<span class="log-label-tag">' + escapeHtml(l) + '</span>').join('') + '</div>'
     : '';
 
-  const errorHtml = log.error
-    ? `<div class="log-error-msg">${escapeHtml(log.error)}</div>`
-    : '';
+  const errorHtml = log.error ? '<div class="log-error-msg">' + escapeHtml(log.error) + '</div>' : '';
 
-  const expandedHtml = `
-    <div class="log-expanded">
-      <div class="log-detail-grid">
-        <div class="log-detail-item"><label>Log ID</label><span>${log.id}</span></div>
-        <div class="log-detail-item"><label>Source</label><span>${log.source}</span></div>
-        <div class="log-detail-item"><label>Action</label><span>${log.action}</span></div>
-        <div class="log-detail-item"><label>Timestamp</label><span>${new Date(log.timestamp).toLocaleString()}</span></div>
-        ${log.clickupTaskId ? `<div class="log-detail-item"><label>ClickUp Task ID</label><span>${log.clickupTaskId}</span></div>` : ''}
-        ${log.clickupStatus ? `<div class="log-detail-item"><label>ClickUp Status</label><span>${log.clickupStatus}</span></div>` : ''}
-        ${log.milestone ? `<div class="log-detail-item"><label>Milestone ID</label><span>${log.milestone}</span></div>` : ''}
-        ${log.duration ? `<div class="log-detail-item"><label>Duration</label><span>${log.duration}ms</span></div>` : ''}
-        ${log.details ? `<div class="log-detail-item"><label>Details</label><span>${escapeHtml(log.details)}</span></div>` : ''}
-      </div>
-    </div>
-  `;
-
-  return `
-    <div class="log-entry ${statusClass}" onclick="toggleExpand(this)">
-      <div class="log-header">
-        <div class="log-header-left">
-          <span class="log-source ${sourceClass}">${sourceIcon} ${log.source}</span>
-          <span class="log-action-badge ${actionClass}">${actionIcon} ${log.action}</span>
-        </div>
-        <span class="log-timestamp">${formatRelativeTime(new Date(log.timestamp))}</span>
-      </div>
-      <div class="log-body">
-        <div class="log-issue-title">${escapeHtml(title)}</div>
-        <div class="log-details-row">${details}</div>
-        ${labelsHtml}
-        ${errorHtml}
-      </div>
-      ${expandedHtml}
-    </div>
-  `;
+  return '<div class="log-entry ' + statusClass + '" onclick="toggleExpand(this)">' +
+    '<div class="log-header"><div class="log-header-left">' +
+    '<span class="log-source log-source-' + log.source + '">' + sourceIcon + ' ' + log.source + '</span>' +
+    '<span class="log-action-badge log-action-' + log.action + '">' + actionIcon + ' ' + log.action + '</span>' +
+    '</div><span class="log-timestamp">' + formatRelativeTime(new Date(log.timestamp)) + '</span></div>' +
+    '<div class="log-body"><div class="log-issue-title">' + escapeHtml(title) + '</div>' +
+    '<div class="log-details-row">' + details + '</div>' + labelsHtml + errorHtml + '</div>' +
+    '<div class="log-expanded"><div class="log-detail-grid">' +
+    '<div class="log-detail-item"><label>Log ID</label><span>' + log.id + '</span></div>' +
+    '<div class="log-detail-item"><label>Timestamp</label><span>' + new Date(log.timestamp).toLocaleString() + '</span></div>' +
+    (log.clickupTaskId ? '<div class="log-detail-item"><label>ClickUp Task</label><span>' + log.clickupTaskId + '</span></div>' : '') +
+    (log.clickupStatus ? '<div class="log-detail-item"><label>Status Set</label><span>' + log.clickupStatus + '</span></div>' : '') +
+    (log.duration ? '<div class="log-detail-item"><label>Duration</label><span>' + log.duration + 'ms</span></div>' : '') +
+    '</div></div></div>';
 }
 
-function toggleExpand(el) {
-  el.classList.toggle('expanded');
-}
+function toggleExpand(el) { el.classList.toggle('expanded'); }
 
 // ─── Pagination ────────────────────────────────────────────────────────────────
 
 function renderPagination(totalPages) {
   const container = document.getElementById('logsPagination');
-  if (totalPages <= 1) {
-    container.innerHTML = '';
-    return;
-  }
+  if (totalPages <= 1) { container.innerHTML = ''; return; }
 
   let html = '';
-  if (currentPage > 1) {
-    html += `<button class="page-btn" onclick="goToPage(${currentPage - 1})">← Prev</button>`;
-  }
-
+  if (currentPage > 1) html += '<button class="page-btn" onclick="goToPage(' + (currentPage - 1) + ')">\u2190 Prev</button>';
   for (let i = 1; i <= totalPages; i++) {
-    if (i === currentPage) {
-      html += `<button class="page-btn active">${i}</button>`;
-    } else if (i === 1 || i === totalPages || Math.abs(i - currentPage) <= 2) {
-      html += `<button class="page-btn" onclick="goToPage(${i})">${i}</button>`;
-    } else if (Math.abs(i - currentPage) === 3) {
-      html += `<span class="page-btn" style="border:none;background:none;">…</span>`;
-    }
+    if (i === currentPage) html += '<button class="page-btn active">' + i + '</button>';
+    else if (i === 1 || i === totalPages || Math.abs(i - currentPage) <= 2) html += '<button class="page-btn" onclick="goToPage(' + i + ')">' + i + '</button>';
+    else if (Math.abs(i - currentPage) === 3) html += '<span class="page-btn" style="border:none;background:none;">\u2026</span>';
   }
-
-  if (currentPage < totalPages) {
-    html += `<button class="page-btn" onclick="goToPage(${currentPage + 1})">Next →</button>`;
-  }
-
+  if (currentPage < totalPages) html += '<button class="page-btn" onclick="goToPage(' + (currentPage + 1) + ')">Next \u2192</button>';
   container.innerHTML = html;
 }
 
-function goToPage(page) {
-  currentPage = page;
-  renderLogs();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+function goToPage(page) { currentPage = page; renderLogs(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
 // ─── Utilities ─────────────────────────────────────────────────────────────────
 
-function formatTime(date) {
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
+function formatTime(date) { return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
 
 function formatRelativeTime(date) {
-  const now = new Date();
-  const diff = now - date;
-
+  const diff = new Date() - date;
   if (diff < 60000) return 'just now';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
+  if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+  if (diff < 604800000) return Math.floor(diff / 86400000) + 'd ago';
   return date.toLocaleDateString();
 }
 
 function escapeHtml(text) {
   if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  var d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
 }
 
-function showLoading(show) {
-  document.getElementById('loading').style.display = show ? 'block' : 'none';
-}
-
-function showError(msg) {
-  const el = document.getElementById('error');
-  el.textContent = msg;
-  el.style.display = 'block';
-}
-
-function hideError() {
-  document.getElementById('error').style.display = 'none';
-}
+function showLoading(show) { document.getElementById('loading').style.display = show ? 'block' : 'none'; }
+function showError(msg) { var e = document.getElementById('error'); e.textContent = msg; e.style.display = 'block'; }
+function hideError() { document.getElementById('error').style.display = 'none'; }

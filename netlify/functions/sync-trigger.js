@@ -175,7 +175,7 @@ function getExpectedStatus(labels, issueState) {
   if (hasLabel(labels, 'For Testing')) return 'For Testing in Hotfix';
   if (hasLabel(labels, 'On-Going Testing')) return 'Ongoing Testing';
   if (hasLabel(labels, 'On-Going Development')) return 'Ongoing Development';
-  if (hasLabel(labels, 'Escalated to Dev')) return 'Testing Failed';
+  if (hasLabel(labels, 'Escalated to Dev')) return 'Testing: Failed';
 
   return null; // no label-based status change
 }
@@ -278,6 +278,22 @@ async function syncIssue(issue, existingTaskMap) {
 // ─── Handler ───────────────────────────────────────────────────────────────────
 
 exports.handler = async (event) => {
+  // ─── Password protection ───
+  const requiredPassword = process.env.LOGS_PASSWORD;
+  if (requiredPassword) {
+    const provided = event.headers['x-sync-password'] || '';
+    const isVerifyOnly = event.queryStringParameters?.verify === 'true';
+
+    if (provided !== requiredPassword) {
+      return jsonResponse(401, { error: 'Unauthorized' });
+    }
+
+    // If just verifying auth, return OK without running sync
+    if (isVerifyOnly) {
+      return jsonResponse(200, { authenticated: true });
+    }
+  }
+
   console.log(`[sync-trigger] Manual trigger at ${new Date().toISOString()}`);
 
   try {

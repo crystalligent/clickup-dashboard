@@ -430,3 +430,60 @@
     outline: none;
     border-color: var(--primary);
 }
+
+/* Login Gate */
+.login-gate {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.login-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 40px;
+    text-align: center;
+    max-width: 360px;
+    width: 100%;
+}
+
+.login-box h2 {
+    font-size: 1.4rem;
+    margin-bottom: 8px;
+}
+
+.login-box p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+}
+
+.login-box input {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+}
+
+.login-box input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.login-box .btn {
+    width: 100%;
+    padding: 10px;
+}
+
+.login-error {
+    margin-top: 12px;
+    color: var(--danger);
+    font-size: 0.8rem;
+}

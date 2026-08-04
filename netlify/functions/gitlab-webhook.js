@@ -139,7 +139,7 @@ function getExpectedStatus(labels, issueState) {
   if (hasLabel(labels, 'For Testing')) return 'For Testing in Hotfix';
   if (hasLabel(labels, 'On-Going Testing')) return 'Ongoing Testing';
   if (hasLabel(labels, 'On-Going Development')) return 'Ongoing Development';
-  if (hasLabel(labels, 'Escalated to Dev')) return 'Testing Failed';
+  if (hasLabel(labels, 'Escalated to Dev')) return 'Testing: Failed';
   return null;
 }
 

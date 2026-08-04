@@ -8,7 +8,18 @@
     <link rel="stylesheet" href="logs.css">
 </head>
 <body>
-    <div class="app">
+    <!-- Login Gate -->
+    <div class="login-gate" id="loginGate">
+        <div class="login-box">
+            <h2>🔒 Sync Logs</h2>
+            <p>Enter password to access</p>
+            <input type="password" id="loginPassword" placeholder="Password" onkeydown="if(event.key==='Enter')authenticate()" autofocus />
+            <button class="btn btn-primary" onclick="authenticate()">Unlock</button>
+            <div class="login-error" id="loginError" style="display:none;">Incorrect password</div>
+        </div>
+    </div>
+
+    <div class="app" id="mainApp" style="display:none;">
         <!-- Header -->
         <header class="header">
             <div class="header-left">
