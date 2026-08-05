@@ -32,6 +32,7 @@
                 <button class="btn" onclick="triggerManualSync()" id="syncBtn">⚡ Manual Sync</button>
                 <button class="btn" onclick="triggerFullSync()" id="fullSyncBtn">🔄 Sync All</button>
                 <button class="btn" onclick="showDateSync()" id="dateSyncToggle">📅 Sync from Date</button>
+                <button class="btn" onclick="showSingleSync()" id="singleSyncToggle">🔗 Sync by URL</button>
                 <button class="btn btn-danger" onclick="removeDuplicates()" id="dedupBtn">🧹 Remove Duplicates</button>
                 <button class="btn btn-primary" onclick="loadLogs()" id="refreshBtn">↻ Refresh</button>
             </div>
@@ -44,6 +45,16 @@
                 <input type="date" id="syncFromDate" />
                 <button class="btn btn-primary" onclick="triggerDateSync()" id="dateSyncBtn">🚀 Run Sync</button>
                 <button class="btn btn-sm" onclick="hideDateSync()">✕</button>
+            </div>
+        </div>
+
+        <!-- Single Issue Sync Panel -->
+        <div class="date-sync-panel" id="singleSyncPanel" style="display:none;">
+            <div class="date-sync-content">
+                <span class="date-sync-label">GitLab issue URL:</span>
+                <input type="text" id="singleIssueUrl" placeholder="https://tools.iripple.com/.../issues/1234" style="flex:1;min-width:300px;" />
+                <button class="btn btn-primary" onclick="triggerSingleSync()" id="singleSyncBtn">🚀 Sync Issue</button>
+                <button class="btn btn-sm" onclick="hideSingleSync()">✕</button>
             </div>
         </div>
 

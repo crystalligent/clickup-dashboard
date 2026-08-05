@@ -94,10 +94,51 @@ async function triggerFullSync() {
 
 function showDateSync() {
   document.getElementById('dateSyncPanel').style.display = 'block';
+  document.getElementById('singleSyncPanel').style.display = 'none';
 }
 
 function hideDateSync() {
   document.getElementById('dateSyncPanel').style.display = 'none';
+}
+
+function showSingleSync() {
+  document.getElementById('singleSyncPanel').style.display = 'block';
+  document.getElementById('dateSyncPanel').style.display = 'none';
+}
+
+function hideSingleSync() {
+  document.getElementById('singleSyncPanel').style.display = 'none';
+}
+
+async function triggerSingleSync() {
+  const urlInput = document.getElementById('singleIssueUrl').value.trim();
+  if (!urlInput) { alert('Please enter a GitLab issue URL.'); return; }
+  if (!urlInput.includes('/-/issues/')) { alert('Invalid URL. Must be a GitLab issue URL (contains /-/issues/).'); return; }
+
+  var btn = document.getElementById('singleSyncBtn');
+  btn.disabled = true;
+  btn.textContent = '\u23F3 Syncing...';
+
+  try {
+    const password = getStoredPassword();
+    const res = await fetch('/.netlify/functions/sync-single?url=' + encodeURIComponent(urlInput), {
+      headers: { 'X-Sync-Password': password }
+    });
+
+    if (res.status === 401) { sessionStorage.removeItem('logs-auth'); location.reload(); return; }
+
+    const data = await res.json();
+    if (res.ok) {
+      btn.textContent = '\u2705 ' + (data.action === 'created' ? 'Created' : 'Updated') + ' #' + data.iid;
+    } else {
+      btn.textContent = '\u274C ' + (data.error || 'Failed');
+    }
+    setTimeout(() => { btn.textContent = '\uD83D\uDE80 Sync Issue'; btn.disabled = false; }, 4000);
+    setTimeout(loadLogs, 1500);
+  } catch (err) {
+    btn.textContent = '\u274C Failed';
+    setTimeout(() => { btn.textContent = '\uD83D\uDE80 Sync Issue'; btn.disabled = false; }, 3000);
+  }
 }
 
 async function triggerDateSync() {

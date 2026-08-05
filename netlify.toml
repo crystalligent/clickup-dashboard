@@ -58,3 +58,9 @@
   from = "/api/dedup"
   to = "/.netlify/functions/dedup-tasks"
   status = 200
+
+# Clean URL for single issue sync
+[[redirects]]
+  from = "/api/sync-single"
+  to = "/.netlify/functions/sync-single"
+  status = 200
