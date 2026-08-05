@@ -222,6 +222,7 @@ function getExpectedStatus(labels, issueState) {
   if (hasLabel(labels, 'For Release')) return 'for release';
   if (hasLabel(labels, 'Done') || hasLabel(labels, 'Done Development')) return 'done development';
   if (hasLabel(labels, 'For Testing')) return 'for testing in hotfix';
+  if (hasLabel(labels, 'For Deployment to Hotfix')) return 'for deployment to hotfix';
   if (hasLabel(labels, 'On-Going Testing')) return 'ongoing testing';
   if (hasLabel(labels, 'On-Going Development')) return 'ongoing dev';
   if (hasLabel(labels, 'Escalated to Dev')) return 'testing: failed';
@@ -231,6 +232,12 @@ function getExpectedStatus(labels, issueState) {
 function getExpectedTags(labels) {
   const tags = [];
   if (hasLabel(labels, 'Data Correction')) tags.push('data correction');
+  if (hasLabel(labels, 'Enhancement')) tags.push('enhancement');
+  if (hasLabel(labels, 'Lynexus')) tags.push('lynexus');
+  if (hasLabel(labels, 'Internal Enhancement')) tags.push('internal enhancement');
+  if (hasLabel(labels, 'openAPI')) tags.push('openapi');
+  if (hasLabel(labels, 'Chargeable')) tags.push('chargeable');
+  if (hasLabel(labels, 'For Investigation')) tags.push('for investigation');
   return tags;
 }
 
