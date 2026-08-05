@@ -110,9 +110,16 @@ async function triggerDateSync() {
 }
 
 async function doSync(btnId, url, label) {
+  var allBtns = ['syncBtn', 'fullSyncBtn', 'dateSyncBtn'];
+  allBtns.forEach(function(id) { var b = document.getElementById(id); if (b) b.disabled = true; });
+
   const btn = document.getElementById(btnId);
   btn.classList.add('btn-syncing');
   btn.textContent = '\u23F3 Syncing...';
+
+  function enableButtons() {
+    allBtns.forEach(function(id) { var b = document.getElementById(id); if (b) b.disabled = false; });
+  }
 
   try {
     const controller = new AbortController();
@@ -142,6 +149,7 @@ async function doSync(btnId, url, label) {
     setTimeout(() => {
       btn.textContent = getButtonLabel(btnId);
       btn.classList.remove('btn-syncing');
+      enableButtons();
     }, 3000);
 
     setTimeout(loadLogs, 1500);
@@ -151,6 +159,7 @@ async function doSync(btnId, url, label) {
       setTimeout(() => {
         btn.textContent = getButtonLabel(btnId);
         btn.classList.remove('btn-syncing');
+        enableButtons();
         loadLogs();
       }, 5000);
     } else {
@@ -158,6 +167,7 @@ async function doSync(btnId, url, label) {
       setTimeout(() => {
         btn.textContent = getButtonLabel(btnId);
         btn.classList.remove('btn-syncing');
+        enableButtons();
       }, 3000);
     }
     setTimeout(loadLogs, 2000);

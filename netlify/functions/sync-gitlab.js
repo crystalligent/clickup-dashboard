@@ -388,6 +388,9 @@ exports.handler = async (event) => {
     for (const issue of uniqueIssues) {
       try {
         const result = await syncIssue(issue, existingTaskMap);
+        if (result.action === 'created' && result.taskId) {
+          existingTaskMap.set(String(issue.iid), { id: result.taskId, name: `${issue.iid} - `, status: result.status });
+        }
         results.push(result);
       } catch (err) {
         await logRun({

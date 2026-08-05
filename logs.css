@@ -487,3 +487,10 @@
     color: var(--danger);
     font-size: 0.8rem;
 }
+
+/* Disabled buttons */
+.btn:disabled {
+    opacity: 0.4;
+    pointer-events: none;
+    cursor: not-allowed;
+}
