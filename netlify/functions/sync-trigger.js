@@ -239,43 +239,29 @@ async function syncIssue(issue, existingTaskMap) {
   if (existing) {
     const taskId = existing.id;
 
-    // Build update payload — only include fields that changed
-    const updates = {};
-    if (existing.name !== taskName) updates.name = taskName;
-    if (expectedStatus && existing.status !== expectedStatus) updates.status = expectedStatus;
+    // Only update if status needs changing (skip name-only and tag updates to save time)
+    if (expectedStatus && existing.status !== expectedStatus) {
+      const updates = { name: taskName, status: expectedStatus };
+      if (clickupAssignees.length > 0) updates.assignees = { add: clickupAssignees };
 
-    // Sync assignees
-    if (clickupAssignees.length > 0) {
-      updates.assignees = { add: clickupAssignees };
-    }
+      await clickupRequest('PUT', `/task/${taskId}`, updates);
 
-    // Add tags if needed (ClickUp API: POST /task/{id}/tag/{tag_name})
-    let tagsAdded = [];
-    for (const tag of expectedTags) {
-      try {
-        await clickupRequest('POST', `/task/${taskId}/tag/${encodeURIComponent(tag)}`, {});
-        tagsAdded.push(tag);
-      } catch (e) {
-        // Tag might already exist — ignore errors
+      // Add tags only when we're already updating
+      for (const tag of expectedTags) {
+        try { await clickupRequest('POST', `/task/${taskId}/tag/${encodeURIComponent(tag)}`, {}); } catch (e) {}
       }
-    }
 
-    if (Object.keys(updates).length > 0 || tagsAdded.length > 0) {
-      if (Object.keys(updates).length > 0) {
-        await clickupRequest('PUT', `/task/${taskId}`, updates);
-      }
-      const statusNote = updates.status || (tagsAdded.length > 0 ? `tags: ${tagsAdded.join(', ')}` : 'name update only');
       await logRun({
         source: 'manual', action: 'updated', status: 'success',
         duration: Date.now() - startTime,
         issueIid: issue.iid, issueTitle: issue.title,
-        clickupTaskId: taskId, clickupStatus: statusNote,
+        clickupTaskId: taskId, clickupStatus: expectedStatus,
         milestone: milestoneName, labels: labels.map((l) => l.title),
       });
-      return { iid: issue.iid, action: 'updated', status: statusNote };
+      return { iid: issue.iid, action: 'updated', status: expectedStatus };
     }
 
-    return { iid: issue.iid, skipped: true, reason: 'already exists, no changes' };
+    return { iid: issue.iid, skipped: true, reason: 'already exists, no status change' };
   }
 
   // ─── Task doesn't exist: create it ───
