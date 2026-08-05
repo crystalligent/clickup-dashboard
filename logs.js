@@ -181,6 +181,32 @@ function getButtonLabel(btnId) {
   return 'Sync';
 }
 
+// ─── Remove Duplicates ─────────────────────────────────────────────────────────
+
+async function removeDuplicates() {
+  if (!confirm('This will delete duplicate ClickUp tasks (keeps oldest copy of each). Continue?')) return;
+
+  var btn = document.getElementById('dedupBtn');
+  btn.disabled = true;
+  btn.textContent = '\u23F3 Cleaning...';
+
+  try {
+    const password = getStoredPassword();
+    const res = await fetch('/.netlify/functions/dedup-tasks', {
+      headers: { 'X-Sync-Password': password }
+    });
+
+    if (res.status === 401) { sessionStorage.removeItem('logs-auth'); location.reload(); return; }
+
+    const data = await res.json();
+    btn.textContent = '\u2705 Removed ' + (data.duplicatesRemoved || 0) + ' duplicates';
+    setTimeout(() => { btn.textContent = '\uD83E\uDDF9 Remove Duplicates'; btn.disabled = false; }, 4000);
+  } catch (err) {
+    btn.textContent = '\u274C Failed';
+    setTimeout(() => { btn.textContent = '\uD83E\uDDF9 Remove Duplicates'; btn.disabled = false; }, 3000);
+  }
+}
+
 // ─── Clear Logs ────────────────────────────────────────────────────────────────
 
 async function clearLogs() {

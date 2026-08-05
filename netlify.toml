@@ -8,7 +8,7 @@
 # Scheduled function: sync GitLab issues every 5 minutes
 # Note: in local dev, hit GET /api/sync manually. In production Netlify runs this on schedule.
 [functions."sync-gitlab"]
-  schedule = "*/5 * * * *"
+  schedule = "*/30 * * * *"
   node_bundler = "esbuild"
   external_node_modules = ["@netlify/blobs"]
 
@@ -51,4 +51,10 @@
 [[redirects]]
   from = "/api/logs"
   to = "/.netlify/functions/logs-store"
+  status = 200
+
+# Clean URL for dedup
+[[redirects]]
+  from = "/api/dedup"
+  to = "/.netlify/functions/dedup-tasks"
   status = 200

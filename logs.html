@@ -32,6 +32,7 @@
                 <button class="btn" onclick="triggerManualSync()" id="syncBtn">⚡ Manual Sync</button>
                 <button class="btn" onclick="triggerFullSync()" id="fullSyncBtn">🔄 Sync All</button>
                 <button class="btn" onclick="showDateSync()" id="dateSyncToggle">📅 Sync from Date</button>
+                <button class="btn btn-danger" onclick="removeDuplicates()" id="dedupBtn">🧹 Remove Duplicates</button>
                 <button class="btn btn-primary" onclick="loadLogs()" id="refreshBtn">↻ Refresh</button>
             </div>
         </header>
@@ -51,7 +52,7 @@
             <div class="status-bar">
                 <div class="status-item">
                     <span class="status-dot status-dot-active"></span>
-                    <span>Scheduled sync: every 5 minutes</span>
+                    <span>Scheduled sync: every 30 minutes</span>
                 </div>
                 <div class="status-item">
                     <span class="status-dot status-dot-active"></span>
