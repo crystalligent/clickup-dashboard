@@ -12,11 +12,12 @@
  * Schedule: Every 5 minutes
  */
 
-const { dequeue, getQueueSize } = require('./utils/queue');
+const { getQueue, saveQueue } = require('./utils/queue');
 const { logRun } = require('./utils/logger');
 
 const CLICKUP_API = 'https://api.clickup.com/api/v2';
-const BATCH_SIZE = 8;
+const BATCH_SIZE = 5;
+const MAX_RUNTIME_MS = 8000; // Leave headroom before Netlify's 10s timeout
 
 function getEnv(key, fallback) {
   const val = process.env[key];
@@ -201,20 +202,31 @@ exports.handler = async (event) => {
   console.log(`[process-queue] Running at ${new Date().toISOString()}`);
 
   try {
-    const batch = await dequeue(BATCH_SIZE);
+    const queue = await getQueue();
 
-    if (batch.length === 0) {
+    if (queue.length === 0) {
       console.log('[process-queue] Queue empty, nothing to process');
       return jsonResponse(200, { processed: 0, remaining: 0 });
     }
 
-    console.log(`[process-queue] Processing ${batch.length} issues`);
+    const batch = queue.slice(0, BATCH_SIZE);
+    console.log(`[process-queue] Processing ${batch.length} of ${queue.length} issues`);
 
     const results = [];
+    const successfulIids = [];
+    const startTime = Date.now();
+
     for (const item of batch) {
+      // Check if we're running out of time
+      if (Date.now() - startTime > MAX_RUNTIME_MS) {
+        console.log(`[process-queue] Stopping early — approaching timeout. Processed ${results.length}/${batch.length}`);
+        break;
+      }
+
       try {
         const result = await processIssue(item);
         results.push(result);
+        successfulIids.push(String(item.iid));
       } catch (err) {
         console.error(`[process-queue] Error on #${item.iid}:`, err.message);
         await logRun({
@@ -223,13 +235,18 @@ exports.handler = async (event) => {
           error: err.message,
         });
         results.push({ iid: item.iid, error: err.message });
+        // Remove failed items too so they don't block the queue forever
+        successfulIids.push(String(item.iid));
       }
     }
 
-    const remaining = await getQueueSize();
-    console.log(`[process-queue] Done. Processed: ${results.length}, Remaining in queue: ${remaining}`);
+    // Only remove processed items from the queue AFTER processing
+    const updatedQueue = queue.filter((item) => !successfulIids.includes(String(item.iid)));
+    await saveQueue(updatedQueue);
 
-    return jsonResponse(200, { processed: results.length, remaining, results });
+    console.log(`[process-queue] Done. Processed: ${results.length}, Remaining in queue: ${updatedQueue.length}`);
+
+    return jsonResponse(200, { processed: results.length, remaining: updatedQueue.length, results });
   } catch (err) {
     console.error('[process-queue] Fatal error:', err.message);
     return jsonResponse(500, { error: err.message });
