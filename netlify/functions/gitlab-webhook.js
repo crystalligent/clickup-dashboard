@@ -244,7 +244,15 @@ exports.handler = async (event) => {
 
     updates.name = taskName;
     if (expectedStatus) updates.status = expectedStatus;
-    if (clickupAssignees.length > 0) updates.assignees = { add: clickupAssignees };
+
+    // Only update assignees if they differ (replace, not add)
+    const currentAssignees = (existingTask.assignees || []).map((a) => a.id);
+    const expectedAssignee = clickupAssignees[0] || null;
+    const currentMatch = expectedAssignee && currentAssignees.length === 1 && currentAssignees[0] === expectedAssignee;
+    if (expectedAssignee && !currentMatch) {
+      // Remove current assignees, set the correct one
+      updates.assignees = { add: [expectedAssignee], rem: currentAssignees.filter((id) => id !== expectedAssignee) };
+    }
 
     await updateClickUpTask(taskId, updates);
 

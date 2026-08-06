@@ -190,7 +190,14 @@ exports.handler = async (event) => {
       const taskId = existingTask.id;
       const updates = { name: taskName };
       if (expectedStatus) updates.status = expectedStatus;
-      if (clickupAssignees.length > 0) updates.assignees = { add: clickupAssignees };
+
+      // Only update assignee if different (replace — one assignee only)
+      const currentAssignees = (existingTask.assignees || []).map((a) => a.id);
+      const expectedAssignee = clickupAssignees[0] || null;
+      const currentMatch = expectedAssignee && currentAssignees.length === 1 && currentAssignees[0] === expectedAssignee;
+      if (expectedAssignee && !currentMatch) {
+        updates.assignees = { add: [expectedAssignee], rem: currentAssignees.filter((id) => id !== expectedAssignee) };
+      }
 
       await clickupRequest('PUT', `/task/${taskId}`, updates);
 

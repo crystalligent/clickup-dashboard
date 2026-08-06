@@ -55,7 +55,8 @@ async function findExistingTask(iid) {
     const tasks = data.tasks || [];
     for (const task of tasks) {
       if (task.name.startsWith(searchPrefix)) {
-        return { id: task.id, name: task.name, status: task.status?.status };
+        const currentAssignees = (task.assignees || []).map((a) => a.id);
+        return { id: task.id, name: task.name, status: task.status?.status, assignees: currentAssignees };
       }
     }
     if (tasks.length < 100) break;
@@ -137,7 +138,14 @@ async function processIssue(item) {
     const taskId = existing.id;
     const updates = { name: taskName };
     if (expectedStatus && existing.status !== expectedStatus) updates.status = expectedStatus;
-    if (clickupAssignees.length > 0) updates.assignees = { add: clickupAssignees };
+
+    // Only update assignee if different (replace, not add — one assignee only)
+    const currentAssignees = (existing.assignees || []);
+    const expectedAssignee = clickupAssignees[0] || null;
+    const currentMatch = expectedAssignee && currentAssignees.length === 1 && currentAssignees[0] === expectedAssignee;
+    if (expectedAssignee && !currentMatch) {
+      updates.assignees = { add: [expectedAssignee], rem: currentAssignees.filter((id) => id !== expectedAssignee) };
+    }
 
     await clickupRequest('PUT', `/task/${taskId}`, updates);
 
