@@ -16,7 +16,7 @@ const { dequeue, getQueueSize } = require('./utils/queue');
 const { logRun } = require('./utils/logger');
 
 const CLICKUP_API = 'https://api.clickup.com/api/v2';
-const BATCH_SIZE = 5;
+const BATCH_SIZE = 8;
 
 function getEnv(key, fallback) {
   const val = process.env[key];

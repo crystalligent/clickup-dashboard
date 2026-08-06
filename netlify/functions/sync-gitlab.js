@@ -55,16 +55,15 @@ exports.handler = async (event) => {
     const milestoneNames = getEnv('GITLAB_MILESTONES', 'For Development,For Review,Ongoing')
       .split(',').map((m) => m.trim()).filter(Boolean);
 
-    const bufferDays = parseInt(getEnv('SYNC_BUFFER_DAYS', '2'), 10);
     const lastSync = await getLastSyncTime();
     let since = null;
 
     if (lastSync) {
-      since = new Date(lastSync.getTime() - bufferDays * 24 * 60 * 60 * 1000);
-      console.log(`[sync-gitlab] Since: ${since.toISOString()}`);
+      since = lastSync;
+      console.log(`[sync-gitlab] Since last sync: ${since.toISOString()}`);
     } else {
-      since = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-      console.log(`[sync-gitlab] First run, 3-day lookback`);
+      since = new Date(Date.now() - 60 * 60 * 1000); // first run: last 1 hour
+      console.log(`[sync-gitlab] First run, 1-hour lookback`);
     }
 
     let allIssues = [];
@@ -82,7 +81,7 @@ exports.handler = async (event) => {
     const siteUrl = process.env.URL || '';
     if (siteUrl && unique.length > 0) {
       try {
-        const res = await fetch(`${siteUrl}/.netlify/functions/sync-trigger?full=true`, {
+        const res = await fetch(`${siteUrl}/.netlify/functions/sync-trigger`, {
           headers: { 'X-Sync-Password': process.env.LOGS_PASSWORD || '' }
         });
         const data = await res.json();

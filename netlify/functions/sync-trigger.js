@@ -72,7 +72,6 @@ exports.handler = async (event) => {
       .split(',').map((m) => m.trim()).filter(Boolean);
 
     // Determine lookback
-    const bufferDays = parseInt(getEnv('SYNC_BUFFER_DAYS', '2'), 10);
     const lastSync = await getLastSyncTime();
     let since = null;
 
@@ -86,8 +85,8 @@ exports.handler = async (event) => {
       since = new Date(sinceParam + 'T00:00:00.000Z');
       console.log(`[sync-trigger] Sync from date: ${since.toISOString()}`);
     } else if (lastSync) {
-      since = new Date(lastSync.getTime() - bufferDays * 24 * 60 * 60 * 1000);
-      console.log(`[sync-trigger] Incremental since: ${since.toISOString()}`);
+      since = lastSync;
+      console.log(`[sync-trigger] Incremental since last sync: ${since.toISOString()}`);
     } else {
       since = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
       console.log('[sync-trigger] First run, 3-day lookback');
