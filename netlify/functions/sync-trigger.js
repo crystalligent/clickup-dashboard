@@ -92,7 +92,7 @@ exports.handler = async (event) => {
       console.log('[sync-trigger] First run, 3-day lookback');
     }
 
-    const useCreatedAfter = !!sinceParam;
+    const useCreatedAfter = false;
 
     // Fetch issues from GitLab
     let allIssues = [];
