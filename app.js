@@ -91,10 +91,87 @@ function toggleConfig() {
     panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 }
 
+// --- Date Range ---
+
+let dateFilterActive = false;
+
+function setPreset(preset, btn) {
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const now = new Date();
+    let from, to;
+
+    switch (preset) {
+        case 'all':
+            document.getElementById('dateFrom').value = '';
+            document.getElementById('dateTo').value = '';
+            dateFilterActive = false;
+            fetchAllData();
+            return;
+        case 'this-month':
+            from = new Date(now.getFullYear(), now.getMonth(), 1);
+            to = now;
+            break;
+        case 'last-month':
+            from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            to = new Date(now.getFullYear(), now.getMonth(), 0);
+            break;
+        case 'this-week':
+            const dayOfWeek = now.getDay();
+            from = new Date(now);
+            from.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+            to = now;
+            break;
+        case 'last-week':
+            const dow = now.getDay();
+            const lastMonday = new Date(now);
+            lastMonday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1) - 7);
+            from = lastMonday;
+            to = new Date(lastMonday);
+            to.setDate(lastMonday.getDate() + 6);
+            break;
+        case 'last-7':
+            from = new Date(now);
+            from.setDate(now.getDate() - 7);
+            to = now;
+            break;
+        case 'last-14':
+            from = new Date(now);
+            from.setDate(now.getDate() - 14);
+            to = now;
+            break;
+        case 'last-30':
+            from = new Date(now);
+            from.setDate(now.getDate() - 30);
+            to = now;
+            break;
+        case 'custom':
+            return;
+    }
+
+    document.getElementById('dateFrom').value = formatDateISO(from);
+    document.getElementById('dateTo').value = formatDateISO(to);
+    dateFilterActive = true;
+    fetchAllData();
+}
+
+function onDateChange() {
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    dateFilterActive = true;
+}
+
+function formatDateISO(d) {
+    return d.toISOString().split('T')[0];
+}
+
 // --- API ---
 
 async function fetchAllData() {
     const { listId } = getConfig();
+    const dateFrom = document.getElementById('dateFrom').value;
+    const dateTo = document.getElementById('dateTo').value;
+
     showLoading(true);
     hideError();
 
@@ -103,12 +180,20 @@ async function fetchAllData() {
         let page = 0;
         let hasMore = true;
 
+        // Build query params with optional date range
+        let dateParams = '';
+        if (dateFilterActive && dateFrom && dateTo) {
+            const fromTs = new Date(dateFrom).getTime();
+            const toTs = new Date(dateTo + 'T23:59:59').getTime();
+            dateParams = `&date_updated_gt=${fromTs}&date_updated_lt=${toTs}`;
+        }
+
         while (hasMore) {
             document.getElementById('loadingProgress').textContent =
                 `Loading page ${page + 1}... (${tasks.length} tasks so far)`;
 
             const res = await clickupFetch(
-                `/api/v2/list/${listId}/task?page=${page}&subtasks=true&include_closed=true`
+                `/api/v2/list/${listId}/task?page=${page}&subtasks=true&include_closed=true${dateParams}`
             );
 
             if (!res.ok) {
@@ -125,8 +210,14 @@ async function fetchAllData() {
 
         allTasks = tasks;
         renderDashboard();
+
+        const rangeText = (dateFilterActive && dateFrom && dateTo)
+            ? ` · ${dateFrom} to ${dateTo}`
+            : ' · All time';
         document.getElementById('lastUpdated').textContent =
             `Updated ${new Date().toLocaleTimeString()} · ${allTasks.length} tasks`;
+        document.getElementById('dateRangeInfo').textContent =
+            `${allTasks.length} tasks loaded${rangeText}`;
 
     } catch (err) {
         showError(err.message);
@@ -595,8 +686,12 @@ function renderTable() {
             `<span class="tag-badge" style="background:${tag.tag_bg}33;color:${tag.tag_fg}">${escapeHtml(tag.name)}</span>`
         ).join('');
 
+        const gitlabId = getGitlabId(task.name);
+        const gitlabUrl = isGitlabUrl(task.name) ? task.name : '';
+
         return `<tr>
             <td><a href="${url}" target="_blank" rel="noopener" class="task-link">${escapeHtml(task.name)}</a></td>
+            <td>${gitlabUrl ? `<a href="${gitlabUrl}" target="_blank" rel="noopener" class="gitlab-btn">#${gitlabId}</a>` : '—'}</td>
             <td><span class="status-badge" style="background:${statusColor}22;color:${statusColor}">${escapeHtml(status)}</span></td>
             <td><span class="priority-badge"><span class="priority-dot" style="background:${priorityColor}"></span>${escapeHtml(priority)}</span></td>
             <td>${escapeHtml(assignees)}</td>
@@ -636,6 +731,16 @@ function goToPage(page) {
 }
 
 // --- Helpers ---
+
+function isGitlabUrl(name) {
+    return name && (name.includes('tools.iripple.com') || name.includes('gitlab.com')) && name.includes('/issues/');
+}
+
+function getGitlabId(name) {
+    if (!isGitlabUrl(name)) return '';
+    const parts = name.replace(/\s+/g, '').split('/');
+    return parts[parts.length - 1] || '';
+}
 
 function getWeekKey(timestamp) {
     const date = new Date(timestamp);
