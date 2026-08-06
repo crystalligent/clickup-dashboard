@@ -106,7 +106,7 @@ function renderQueue(items) {
 
     var added = item.added_at ? formatRelativeTime(new Date(item.added_at)) : '—';
 
-    return '<tr>' +
+    return '<tr id="row-' + item.iid + '">' +
       '<td>' + (idx + 1) + '</td>' +
       '<td><strong>' + item.iid + '</strong></td>' +
       '<td><a href="' + escapeHtml(item.web_url) + '" target="_blank" class="task-link">' + escapeHtml(truncate(item.title, 60)) + '</a></td>' +
@@ -115,8 +115,54 @@ function renderQueue(items) {
       '<td>' + labels + '</td>' +
       '<td>' + assignee + '</td>' +
       '<td>' + added + '</td>' +
+      '<td><button class="btn btn-sm btn-primary" onclick="syncNow(' + item.iid + ', this)">Sync now</button></td>' +
       '</tr>';
   }).join('');
+}
+
+// ─── Sync Single from Queue ────────────────────────────────────────────────────
+
+async function syncNow(iid, btn) {
+  btn.disabled = true;
+  btn.textContent = '\u23F3...';
+
+  try {
+    var password = getStoredPassword();
+
+    // Get the issue URL from the queue item
+    var res = await fetch(QUEUE_API, { headers: { 'X-Sync-Password': password } });
+    var data = await res.json();
+    var item = (data.items || []).find(function(i) { return i.iid === iid; });
+
+    if (!item) { btn.textContent = 'Gone'; return; }
+
+    // Sync via sync-single
+    var syncRes = await fetch('/.netlify/functions/sync-single?url=' + encodeURIComponent(item.web_url), {
+      headers: { 'X-Sync-Password': password }
+    });
+    var syncData = await syncRes.json();
+
+    if (syncRes.ok) {
+      // Remove from queue
+      await fetch('/.netlify/functions/queue-status?remove=' + iid, {
+        method: 'PATCH',
+        headers: { 'X-Sync-Password': password }
+      });
+
+      // Remove row from table
+      var row = document.getElementById('row-' + iid);
+      if (row) row.remove();
+
+      // Update queue size display
+      loadQueue();
+    } else {
+      btn.textContent = '\u274C';
+      setTimeout(function() { btn.textContent = 'Sync now'; btn.disabled = false; }, 3000);
+    }
+  } catch (err) {
+    btn.textContent = '\u274C';
+    setTimeout(function() { btn.textContent = 'Sync now'; btn.disabled = false; }, 3000);
+  }
 }
 
 // ─── Clear Queue ───────────────────────────────────────────────────────────────

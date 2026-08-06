@@ -48,6 +48,17 @@ exports.handler = async (event) => {
     }
   }
 
+  // PATCH: remove a single item by IID
+  if (event.httpMethod === 'PATCH') {
+    const removeIid = event.queryStringParameters?.remove;
+    if (!removeIid) return jsonResponse(400, { error: 'Missing ?remove=iid' });
+
+    const queue = await getQueue();
+    const filtered = queue.filter((item) => String(item.iid) !== String(removeIid));
+    await saveQueue(filtered);
+    return jsonResponse(200, { removed: removeIid, remaining: filtered.length });
+  }
+
   if (event.httpMethod === 'DELETE') {
     await saveQueue([]);
     return jsonResponse(200, { cleared: true });
