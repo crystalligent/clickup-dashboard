@@ -25,6 +25,29 @@ exports.handler = async (event) => {
     }
   }
 
+  // POST: enqueue items (called by sync-trigger)
+  if (event.httpMethod === 'POST') {
+    try {
+      const body = JSON.parse(event.body);
+      const issues = body.issues || [];
+      if (issues.length === 0) return jsonResponse(400, { error: 'No issues provided' });
+
+      const queue = await getQueue();
+      const existingMap = new Map(queue.map((item) => [String(item.iid), item]));
+
+      for (const issue of issues) {
+        existingMap.set(String(issue.iid), issue);
+      }
+
+      const newQueue = Array.from(existingMap.values());
+      await saveQueue(newQueue);
+
+      return jsonResponse(200, { queued: issues.length, queueSize: newQueue.length });
+    } catch (err) {
+      return jsonResponse(500, { error: err.message });
+    }
+  }
+
   if (event.httpMethod === 'DELETE') {
     await saveQueue([]);
     return jsonResponse(200, { cleared: true });

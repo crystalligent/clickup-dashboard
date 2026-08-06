@@ -107,10 +107,42 @@ exports.handler = async (event) => {
     const seen = new Set();
     const unique = allIssues.filter((i) => { if (seen.has(i.iid)) return false; seen.add(i.iid); return true; });
 
-    // Enqueue
-    const queueSize = await enqueue(unique);
-    await saveLastSyncTime(new Date());
+    // Prepare queue items
+    const queueItems = unique.map((issue) => ({
+      iid: issue.iid,
+      title: issue.title,
+      web_url: issue.web_url,
+      description: issue.description || '',
+      state: issue.state || 'opened',
+      milestone_id: issue.milestone ? String(issue.milestone.id) : '',
+      milestone_name: issue.milestone ? issue.milestone.title : '',
+      labels: issue.labels || [],
+      assignees: (issue.assignees || []).map((a) => ({ username: a.username, name: a.name })),
+      added_at: new Date().toISOString(),
+    }));
 
+    // Write to queue via HTTP POST to queue-status (ensures Blobs context works)
+    const siteUrl = process.env.URL || '';
+    let queueSize = 0;
+
+    if (siteUrl) {
+      try {
+        const res = await fetch(`${siteUrl}/.netlify/functions/queue-status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Sync-Password': process.env.LOGS_PASSWORD || '' },
+          body: JSON.stringify({ issues: queueItems }),
+        });
+        const data = await res.json();
+        queueSize = data.queueSize || 0;
+      } catch (e) {
+        console.log(`[sync-trigger] HTTP queue write failed: ${e.message}, trying direct`);
+        queueSize = await enqueue(unique);
+      }
+    } else {
+      queueSize = await enqueue(unique);
+    }
+
+    await saveLastSyncTime(new Date());
     console.log(`[sync-trigger] Queued ${unique.length} issues. Total queue: ${queueSize}`);
 
     return jsonResponse(200, {
