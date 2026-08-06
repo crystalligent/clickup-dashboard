@@ -78,7 +78,22 @@ exports.handler = async (event) => {
     const seen = new Set();
     const unique = allIssues.filter((i) => { if (seen.has(i.iid)) return false; seen.add(i.iid); return true; });
 
-    // Add to queue
+    // Add to queue via HTTP to sync-trigger (ensures Blobs context works)
+    const siteUrl = process.env.URL || '';
+    if (siteUrl && unique.length > 0) {
+      try {
+        const res = await fetch(`${siteUrl}/.netlify/functions/sync-trigger?full=true`, {
+          headers: { 'X-Sync-Password': process.env.LOGS_PASSWORD || '' }
+        });
+        const data = await res.json();
+        console.log(`[sync-gitlab] Delegated to sync-trigger: ${JSON.stringify(data)}`);
+        return jsonResponse(200, { fetched: unique.length, delegated: true, ...data });
+      } catch (e) {
+        console.log(`[sync-gitlab] Delegation failed, writing directly: ${e.message}`);
+      }
+    }
+
+    // Fallback: write directly to queue
     const queueSize = await enqueue(unique);
     await saveLastSyncTime(new Date());
 

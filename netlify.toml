@@ -76,3 +76,9 @@
   from = "/api/sync-single"
   to = "/.netlify/functions/sync-single"
   status = 200
+
+# Clean URL for queue status
+[[redirects]]
+  from = "/api/queue"
+  to = "/.netlify/functions/queue-status"
+  status = 200
