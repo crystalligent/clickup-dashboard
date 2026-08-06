@@ -185,8 +185,8 @@ async function doSync(btnId, url, label) {
       try { data = JSON.parse(text); } catch (e) { /* ignore */ }
     }
 
-    const count = data.created || data.synced || '\u2713';
-    btn.textContent = '\u2705 Done (' + count + ' synced)';
+    const count = data.queued || data.created || data.synced || '\u2713';
+    btn.textContent = '\u2705 Queued ' + count + ' issues';
     setTimeout(() => {
       btn.textContent = getButtonLabel(btnId);
       btn.classList.remove('btn-syncing');

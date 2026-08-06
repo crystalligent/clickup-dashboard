@@ -5,14 +5,23 @@
 [build.environment]
   NODE_VERSION = "18"
 
-# Scheduled function: sync GitLab issues every 5 minutes
-# Note: in local dev, hit GET /api/sync manually. In production Netlify runs this on schedule.
+# Scheduled: fetch GitLab issues into queue every 30 minutes
 [functions."sync-gitlab"]
   schedule = "*/30 * * * *"
   node_bundler = "esbuild"
   external_node_modules = ["@netlify/blobs"]
 
+# Scheduled: process queue batch every 5 minutes
+[functions."process-queue"]
+  schedule = "*/5 * * * *"
+  node_bundler = "esbuild"
+  external_node_modules = ["@netlify/blobs"]
+
 [functions."sync-trigger"]
+  node_bundler = "esbuild"
+  external_node_modules = ["@netlify/blobs"]
+
+[functions."sync-single"]
   node_bundler = "esbuild"
   external_node_modules = ["@netlify/blobs"]
 
@@ -24,8 +33,11 @@
   node_bundler = "esbuild"
   external_node_modules = ["@netlify/blobs"]
 
+[functions."dedup-tasks"]
+  node_bundler = "esbuild"
+  external_node_modules = ["@netlify/blobs"]
+
 [dev]
-  # Increase local dev function timeout to 120 seconds
   functions-timeout = 120
 
 [[headers]]
