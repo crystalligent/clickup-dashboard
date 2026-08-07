@@ -21,6 +21,10 @@
   node_bundler = "esbuild"
   external_node_modules = ["@netlify/blobs"]
 
+[functions."run-queue"]
+  node_bundler = "esbuild"
+  external_node_modules = ["@netlify/blobs"]
+
 [functions."sync-single"]
   node_bundler = "esbuild"
   external_node_modules = ["@netlify/blobs"]
@@ -86,5 +90,5 @@
 # Clean URL for manually triggering queue processor
 [[redirects]]
   from = "/api/process"
-  to = "/.netlify/functions/process-queue"
+  to = "/.netlify/functions/run-queue"
   status = 200

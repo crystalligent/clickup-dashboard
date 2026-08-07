@@ -174,7 +174,7 @@ async function processNow() {
 
   try {
     var password = getStoredPassword();
-    var res = await fetch('/.netlify/functions/process-queue', {
+    var res = await fetch('/.netlify/functions/run-queue', {
       headers: { 'X-Sync-Password': password }
     });
     var data = await res.json();
