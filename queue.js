@@ -177,6 +177,17 @@ async function processNow() {
     var res = await fetch('/.netlify/functions/run-queue', {
       headers: { 'X-Sync-Password': password }
     });
+
+    // Handle non-JSON responses (e.g., Netlify 403 HTML pages)
+    var contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      var text = await res.text();
+      alert('Error ' + res.status + ': ' + text.substring(0, 200));
+      btn.disabled = false;
+      btn.textContent = '⚡ Process Now';
+      return;
+    }
+
     var data = await res.json();
 
     if (res.ok) {
@@ -189,7 +200,7 @@ async function processNow() {
       alert(msg);
       loadQueue();
     } else {
-      alert('Error: ' + (data.error || res.status));
+      alert('Error ' + res.status + ': ' + (data.error || JSON.stringify(data)));
     }
   } catch (err) {
     alert('Request failed: ' + err.message);
