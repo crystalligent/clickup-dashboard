@@ -82,3 +82,9 @@
   from = "/api/queue"
   to = "/.netlify/functions/queue-status"
   status = 200
+
+# Clean URL for manually triggering queue processor
+[[redirects]]
+  from = "/api/process"
+  to = "/.netlify/functions/process-queue"
+  status = 200

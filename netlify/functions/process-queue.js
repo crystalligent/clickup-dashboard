@@ -48,9 +48,32 @@ async function clickupRequest(method, path, body) {
 
 async function findExistingTask(iid) {
   const listId = getEnv('CLICKUP_LIST_ID');
+  const teamId = getEnv('CLICKUP_TEAM_ID', '');
   const searchPrefix = `${iid} - `;
-  let page = 0;
 
+  // Try search API first (much faster than paginating all tasks)
+  if (teamId) {
+    try {
+      const searchData = await clickupRequest('POST', `/team/${teamId}/task`, {
+        list_ids: [listId],
+        search: `${iid} - `,
+        include_closed: true,
+      });
+      const tasks = searchData.tasks || [];
+      for (const task of tasks) {
+        if (task.name.startsWith(searchPrefix)) {
+          const currentAssignees = (task.assignees || []).map((a) => a.id);
+          return { id: task.id, name: task.name, status: task.status?.status, assignees: currentAssignees };
+        }
+      }
+      return null;
+    } catch (e) {
+      console.log(`[process-queue] Search API failed, falling back to list scan: ${e.message}`);
+    }
+  }
+
+  // Fallback: paginate through list (slow for large lists)
+  let page = 0;
   while (true) {
     const data = await clickupRequest('GET', `/list/${listId}/task?page=${page}&subtasks=true&include_closed=true`);
     const tasks = data.tasks || [];
@@ -62,7 +85,7 @@ async function findExistingTask(iid) {
     }
     if (tasks.length < 100) break;
     page++;
-    if (page > 50) break;
+    if (page > 10) break; // Reduced from 50 — if not found in 1000 tasks, it's new
   }
   return null;
 }
@@ -199,14 +222,44 @@ async function processIssue(item) {
 // ─── Handler ───────────────────────────────────────────────────────────────────
 
 exports.handler = async (event) => {
-  console.log(`[process-queue] Running at ${new Date().toISOString()}`);
+  const isScheduled = !event.httpMethod || event.httpMethod === 'SCHEDULE';
+  const source = isScheduled ? 'scheduled' : 'manual';
+  console.log(`[process-queue] Running (${source}) at ${new Date().toISOString()}`);
+
+  // Allow manual trigger via GET for debugging
+  if (event.httpMethod === 'GET') {
+    const requiredPassword = process.env.LOGS_PASSWORD;
+    if (requiredPassword) {
+      const provided = event.headers['x-sync-password'] || '';
+      if (provided !== requiredPassword) {
+        return jsonResponse(401, { error: 'Unauthorized' });
+      }
+    }
+  }
 
   try {
-    const queue = await getQueue();
+    // Scheduled functions may not have Blob context, so fetch queue via HTTP
+    const siteUrl = process.env.URL || '';
+    let queue = [];
+
+    if (siteUrl) {
+      try {
+        const res = await fetch(`${siteUrl}/.netlify/functions/queue-status`, {
+          headers: { 'X-Sync-Password': process.env.LOGS_PASSWORD || '' },
+        });
+        const data = await res.json();
+        queue = data.items || [];
+      } catch (e) {
+        console.log(`[process-queue] HTTP queue fetch failed: ${e.message}, trying direct`);
+        queue = await getQueue();
+      }
+    } else {
+      queue = await getQueue();
+    }
 
     if (queue.length === 0) {
       console.log('[process-queue] Queue empty, nothing to process');
-      return jsonResponse(200, { processed: 0, remaining: 0 });
+      return jsonResponse(200, { processed: 0, remaining: 0, source });
     }
 
     const batch = queue.slice(0, BATCH_SIZE);
@@ -235,20 +288,50 @@ exports.handler = async (event) => {
           error: err.message,
         });
         results.push({ iid: item.iid, error: err.message });
-        // Remove failed items too so they don't block the queue forever
-        successfulIids.push(String(item.iid));
+        // Keep failed items in queue for retry (don't add to successfulIids)
+        // Unless it's a permanent error (4xx), remove it
+        if (err.message && (err.message.includes('401') || err.message.includes('403') || err.message.includes('404'))) {
+          successfulIids.push(String(item.iid)); // permanent failure, remove
+        }
+        // Otherwise leave it in queue for next run
       }
     }
 
     // Only remove processed items from the queue AFTER processing
     const updatedQueue = queue.filter((item) => !successfulIids.includes(String(item.iid)));
-    await saveQueue(updatedQueue);
+    
+    // Save via HTTP to ensure Blob context works
+    if (siteUrl) {
+      try {
+        // Remove processed items one by one via PATCH
+        for (const iid of successfulIids) {
+          await fetch(`${siteUrl}/.netlify/functions/queue-status?remove=${iid}`, {
+            method: 'PATCH',
+            headers: { 'X-Sync-Password': process.env.LOGS_PASSWORD || '' },
+          });
+        }
+      } catch (e) {
+        console.log(`[process-queue] HTTP queue save failed: ${e.message}, trying direct`);
+        await saveQueue(updatedQueue);
+      }
+    } else {
+      await saveQueue(updatedQueue);
+    }
 
-    console.log(`[process-queue] Done. Processed: ${results.length}, Remaining in queue: ${updatedQueue.length}`);
+    const remaining = queue.length - successfulIids.length;
+    const summary = {
+      source,
+      processed: results.length,
+      remaining,
+      duration: Date.now() - startTime,
+      results,
+    };
 
-    return jsonResponse(200, { processed: results.length, remaining: updatedQueue.length, results });
+    console.log(`[process-queue] Done. Processed: ${results.length}, Remaining: ${remaining}, Duration: ${summary.duration}ms`);
+
+    return jsonResponse(200, summary);
   } catch (err) {
     console.error('[process-queue] Fatal error:', err.message);
-    return jsonResponse(500, { error: err.message });
+    return jsonResponse(500, { error: err.message, source });
   }
 };

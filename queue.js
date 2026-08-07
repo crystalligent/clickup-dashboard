@@ -165,6 +165,40 @@ async function syncNow(iid, btn) {
   }
 }
 
+// ─── Process Now (manual trigger) ──────────────────────────────────────────────
+
+async function processNow() {
+  var btn = document.getElementById('processBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Processing...';
+
+  try {
+    var password = getStoredPassword();
+    var res = await fetch('/.netlify/functions/process-queue', {
+      headers: { 'X-Sync-Password': password }
+    });
+    var data = await res.json();
+
+    if (res.ok) {
+      var msg = 'Processed: ' + data.processed + ' | Remaining: ' + data.remaining;
+      if (data.duration) msg += ' | Duration: ' + (data.duration / 1000).toFixed(1) + 's';
+      if (data.results) {
+        var errors = data.results.filter(function(r) { return r.error; });
+        if (errors.length > 0) msg += '\n\nErrors:\n' + errors.map(function(e) { return '#' + e.iid + ': ' + e.error; }).join('\n');
+      }
+      alert(msg);
+      loadQueue();
+    } else {
+      alert('Error: ' + (data.error || res.status));
+    }
+  } catch (err) {
+    alert('Request failed: ' + err.message);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '⚡ Process Now';
+}
+
 // ─── Clear Queue ───────────────────────────────────────────────────────────────
 
 async function clearQueue() {
