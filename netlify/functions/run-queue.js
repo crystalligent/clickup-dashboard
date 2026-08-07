@@ -202,7 +202,24 @@ exports.handler = async (event) => {
   }
 
   try {
-    const queue = await getQueue();
+    // Read queue via HTTP to queue-status (ensures same Blob context)
+    const siteUrl = process.env.URL || '';
+    let queue = [];
+
+    if (siteUrl) {
+      const qRes = await fetch(`${siteUrl}/.netlify/functions/queue-status`, {
+        headers: { 'X-Sync-Password': process.env.LOGS_PASSWORD || '' },
+      });
+      if (qRes.ok) {
+        const qData = await qRes.json();
+        queue = qData.items || [];
+      } else {
+        console.error(`[run-queue] queue-status returned ${qRes.status}`);
+        queue = await getQueue();
+      }
+    } else {
+      queue = await getQueue();
+    }
 
     if (queue.length === 0) {
       console.log('[run-queue] Queue empty, nothing to process');
@@ -240,18 +257,32 @@ exports.handler = async (event) => {
       }
     }
 
-    // Remove processed items
-    const updatedQueue = queue.filter((item) => !successfulIids.includes(String(item.iid)));
-    await saveQueue(updatedQueue);
+    // Remove processed items via HTTP PATCH (same Blob context as queue-status)
+    if (siteUrl && successfulIids.length > 0) {
+      for (const iid of successfulIids) {
+        try {
+          await fetch(`${siteUrl}/.netlify/functions/queue-status?remove=${iid}`, {
+            method: 'PATCH',
+            headers: { 'X-Sync-Password': process.env.LOGS_PASSWORD || '' },
+          });
+        } catch (e) {
+          console.error(`[run-queue] Failed to remove #${iid} from queue: ${e.message}`);
+        }
+      }
+    } else if (successfulIids.length > 0) {
+      const updatedQueue = queue.filter((item) => !successfulIids.includes(String(item.iid)));
+      await saveQueue(updatedQueue);
+    }
 
+    const remaining = queue.length - successfulIids.length;
     const summary = {
       processed: results.length,
-      remaining: updatedQueue.length,
+      remaining,
       duration: Date.now() - startTime,
       results,
     };
 
-    console.log(`[run-queue] Done. Processed: ${results.length}, Remaining: ${updatedQueue.length}, Duration: ${summary.duration}ms`);
+    console.log(`[run-queue] Done. Processed: ${results.length}, Remaining: ${remaining}, Duration: ${summary.duration}ms`);
 
     return jsonResponse(200, summary);
   } catch (err) {
