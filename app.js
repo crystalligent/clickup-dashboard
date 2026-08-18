@@ -795,7 +795,7 @@ function copySelectedTasks() {
 
     const selectedNames = allTasks
         .filter(t => selectedTaskIds.has(t.id))
-        .map(t => t.name);
+        .map(t => `${t.name} - [${t.status?.status || 'Unknown'}]`);
 
     const text = selectedNames.join('\n');
 
