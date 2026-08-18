@@ -190,6 +190,10 @@
                 <div class="table-card">
                     <div class="table-header">
                         <h3>Task List</h3>
+                        <div class="table-actions" id="tableActions" style="display:none;">
+                            <span class="selected-count" id="selectedCount">0 selected</span>
+                            <button class="btn btn-copy" onclick="copySelectedTasks()">📋 Copy to Clipboard</button>
+                        </div>
                         <div class="table-filters">
                             <select id="filterStatus" onchange="renderTable()">
                                 <option value="">All Statuses</option>
@@ -211,6 +215,7 @@
                         <table id="taskTable">
                             <thead>
                                 <tr>
+                                    <th class="th-checkbox"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="Select all" /></th>
                                     <th class="sortable" onclick="sortTable('name')">Task ↕</th>
                                     <th>GitLab</th>
                                     <th class="sortable" onclick="sortTable('status')">Status ↕</th>

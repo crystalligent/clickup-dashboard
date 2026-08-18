@@ -29,6 +29,7 @@ let chartInstances = {};
 let currentSort = { field: 'created', direction: 'desc' };
 let currentPage = 1;
 const PAGE_SIZE = 25;
+let selectedTaskIds = new Set();
 
 // Status workflow phases for grouping
 const PHASE_MAP = {
@@ -209,6 +210,8 @@ async function fetchAllData() {
         }
 
         allTasks = tasks;
+        selectedTaskIds.clear();
+        updateSelectionUI();
         renderDashboard();
 
         const rangeText = (dateFilterActive && dateFrom && dateTo)
@@ -688,8 +691,10 @@ function renderTable() {
 
         const gitlabId = getGitlabId(task.name);
         const gitlabUrl = isGitlabUrl(task.name) ? task.name : '';
+        const isChecked = selectedTaskIds.has(task.id) ? 'checked' : '';
 
         return `<tr>
+            <td class="td-checkbox"><input type="checkbox" class="task-checkbox" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}" ${isChecked} onchange="toggleTaskSelection(this)" /></td>
             <td><a href="${url}" target="_blank" rel="noopener" class="task-link">${escapeHtml(task.name)}</a></td>
             <td>${gitlabUrl ? `<a href="${gitlabUrl}" target="_blank" rel="noopener" class="gitlab-btn">#${gitlabId}</a>` : '—'}</td>
             <td><span class="status-badge" style="background:${statusColor}22;color:${statusColor}">${escapeHtml(status)}</span></td>
@@ -699,6 +704,9 @@ function renderTable() {
             <td>${created}</td>
         </tr>`;
     }).join('');
+
+    // Update select-all checkbox state
+    updateSelectAllCheckbox();
 
     // Pagination
     renderPagination(totalPages);
@@ -728,6 +736,95 @@ function renderPagination(totalPages) {
 function goToPage(page) {
     currentPage = page;
     renderTable();
+}
+
+// --- Task Selection ---
+
+function toggleTaskSelection(checkbox) {
+    const taskId = checkbox.dataset.taskId;
+    const taskName = checkbox.dataset.taskName;
+
+    if (checkbox.checked) {
+        selectedTaskIds.add(taskId);
+    } else {
+        selectedTaskIds.delete(taskId);
+    }
+
+    updateSelectionUI();
+    updateSelectAllCheckbox();
+}
+
+function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.task-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+        const taskId = cb.dataset.taskId;
+        if (checkbox.checked) {
+            selectedTaskIds.add(taskId);
+        } else {
+            selectedTaskIds.delete(taskId);
+        }
+    });
+    updateSelectionUI();
+}
+
+function updateSelectAllCheckbox() {
+    const checkboxes = document.querySelectorAll('.task-checkbox');
+    const selectAll = document.getElementById('selectAll');
+    if (!selectAll || checkboxes.length === 0) return;
+
+    const checkedCount = [...checkboxes].filter(cb => cb.checked).length;
+    selectAll.checked = checkedCount === checkboxes.length;
+    selectAll.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+}
+
+function updateSelectionUI() {
+    const actionsBar = document.getElementById('tableActions');
+    const countEl = document.getElementById('selectedCount');
+
+    if (selectedTaskIds.size > 0) {
+        actionsBar.style.display = 'flex';
+        countEl.textContent = `${selectedTaskIds.size} selected`;
+    } else {
+        actionsBar.style.display = 'none';
+    }
+}
+
+function copySelectedTasks() {
+    if (selectedTaskIds.size === 0) return;
+
+    const selectedNames = allTasks
+        .filter(t => selectedTaskIds.has(t.id))
+        .map(t => t.name);
+
+    const text = selectedNames.join('\n');
+
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('.btn-copy');
+        const originalText = btn.textContent;
+        btn.textContent = '✅ Copied!';
+        btn.classList.add('btn-copied');
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.classList.remove('btn-copied');
+        }, 2000);
+    }).catch(() => {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+
+        const btn = document.querySelector('.btn-copy');
+        btn.textContent = '✅ Copied!';
+        btn.classList.add('btn-copied');
+        setTimeout(() => {
+            btn.textContent = '📋 Copy to Clipboard';
+            btn.classList.remove('btn-copied');
+        }, 2000);
+    });
 }
 
 // --- Helpers ---

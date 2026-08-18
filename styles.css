@@ -563,3 +563,57 @@ tr:hover td {
     background: #4da6ff;
     color: #fff;
 }
+
+/* Task Selection */
+.th-checkbox,
+.td-checkbox {
+    width: 36px;
+    text-align: center;
+    padding: 10px 8px;
+}
+
+.task-checkbox,
+#selectAll {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--primary);
+}
+
+.table-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--primary-soft);
+    border: 1px solid var(--primary);
+    border-radius: var(--radius-sm);
+    padding: 8px 16px;
+}
+
+.selected-count {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.btn-copy {
+    padding: 6px 14px;
+    border: 1px solid var(--primary);
+    border-radius: var(--radius-sm);
+    background: var(--primary);
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.15s ease;
+}
+
+.btn-copy:hover {
+    background: #8d7ff5;
+    transform: translateY(-1px);
+}
+
+.btn-copied {
+    background: var(--success) !important;
+    border-color: var(--success) !important;
+}
