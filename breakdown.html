@@ -6,7 +6,6 @@
     <title>Tasks Breakdown — BXI</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="breakdown.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="app">
@@ -14,7 +13,7 @@
         <header class="header">
             <div class="header-left">
                 <h1>Tasks Breakdown</h1>
-                <span class="subtitle">BXI Core, CX &amp; Primer — Executive View</span>
+                <span class="subtitle">BXI Core, CX &amp; Primer</span>
             </div>
             <div class="header-right">
                 <a href="index.html" class="btn">← Main Dashboard</a>
@@ -43,14 +42,8 @@
         <!-- Filters Panel -->
         <section class="section">
             <div class="filters-panel">
-                <div class="filters-panel-header">
-                    <h2 class="filters-title">📋 Filters</h2>
-                    <button class="btn btn-primary" onclick="fetchBreakdownData()">Load Data</button>
-                </div>
-
                 <!-- Date Range -->
-                <div class="filter-group">
-                    <label class="filter-group-label">Date Range</label>
+                <div class="filter-row">
                     <div class="date-range-presets">
                         <button class="preset-btn active" onclick="setPreset('this-month', this)">This Month</button>
                         <button class="preset-btn" onclick="setPreset('last-week', this)">Last Week</button>
@@ -59,7 +52,6 @@
                         <button class="preset-btn" onclick="setPreset('last-7', this)">Last 7 Days</button>
                         <button class="preset-btn" onclick="setPreset('last-14', this)">Last 14 Days</button>
                         <button class="preset-btn" onclick="setPreset('last-30', this)">Last 30 Days</button>
-                        <button class="preset-btn" onclick="setPreset('last-90', this)">Last 90 Days</button>
                         <button class="preset-btn" onclick="setPreset('custom', this)">Custom</button>
                     </div>
                     <div class="date-range-inputs">
@@ -71,20 +63,20 @@
                             <label for="dateTo">To</label>
                             <input type="date" id="dateTo" onchange="onDateChange()" />
                         </div>
+                        <button class="btn btn-primary" onclick="fetchBreakdownData()">Load Data</button>
                     </div>
                 </div>
 
                 <!-- Exclude Assignees -->
-                <div class="filter-group">
-                    <label class="filter-group-label">Exclude Assignees</label>
+                <div class="filter-row">
+                    <label class="filter-row-label">Exclude Developers:</label>
                     <div class="exclude-checkboxes" id="excludeCheckboxes">
                         <span class="filter-hint">Load data to see assignees</span>
                     </div>
                 </div>
 
                 <!-- Task List Filters -->
-                <div class="filter-group">
-                    <label class="filter-group-label">Task List Filters</label>
+                <div class="filter-row">
                     <div class="inline-filters">
                         <select id="filterStatus" onchange="applyFiltersAndRender()">
                             <option value="">All Statuses</option>
@@ -98,42 +90,16 @@
                         <select id="filterTag" onchange="applyFiltersAndRender()">
                             <option value="">All Tags</option>
                         </select>
-                    </div>
-                </div>
-
-                <!-- Additional Executive Filters -->
-                <div class="filter-group">
-                    <label class="filter-group-label">Executive Filters</label>
-                    <div class="inline-filters">
                         <select id="filterPhase" onchange="applyFiltersAndRender()">
                             <option value="">All Phases</option>
                             <option value="Backlog">Backlog</option>
                             <option value="Development">Development</option>
                             <option value="Testing">Testing</option>
-                            <option value="Release">Release Pipeline</option>
+                            <option value="Release">Release</option>
                             <option value="Done">Done</option>
                             <option value="Blocked">Blocked</option>
                         </select>
-                        <select id="filterAging" onchange="applyFiltersAndRender()">
-                            <option value="">All Ages</option>
-                            <option value="fresh">Fresh (&lt; 3 days)</option>
-                            <option value="normal">Normal (3–7 days)</option>
-                            <option value="aging">Aging (7–14 days)</option>
-                            <option value="stale">Stale (14–30 days)</option>
-                            <option value="critical">Critical (&gt; 30 days)</option>
-                        </select>
-                        <select id="filterRisk" onchange="applyFiltersAndRender()">
-                            <option value="">All Risk Levels</option>
-                            <option value="low">Low Risk</option>
-                            <option value="medium">Medium Risk</option>
-                            <option value="high">High Risk</option>
-                            <option value="critical">Critical Risk</option>
-                        </select>
                     </div>
-                </div>
-
-                <div class="filter-group">
-                    <input type="text" id="filterSearch" placeholder="🔍 Search tasks by name..." oninput="applyFiltersAndRender()" class="search-input" />
                 </div>
 
                 <div class="date-range-info" id="dateRangeInfo"></div>
@@ -153,138 +119,51 @@
         <!-- Dashboard Content -->
         <div class="dashboard" id="dashboard" style="display:none;">
 
-            <!-- Executive Summary KPIs -->
+            <!-- KPI Summary Row -->
             <section class="section">
-                <div class="exec-kpi-grid">
-                    <div class="exec-kpi-card">
-                        <div class="exec-kpi-icon" style="background:var(--primary-soft);color:var(--primary)">📋</div>
-                        <div class="exec-kpi-body">
-                            <div class="exec-kpi-value" id="kpiTotal">0</div>
-                            <div class="exec-kpi-label">Total Tasks</div>
-                            <div class="exec-kpi-trend" id="kpiTotalTrend"></div>
+                <div class="kpi-grid">
+                    <div class="kpi-card kpi-active">
+                        <div class="kpi-icon">👨‍💻</div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpiTotal">0</div>
+                            <div class="kpi-label">Dev Tasks Progressed</div>
                         </div>
                     </div>
-                    <div class="exec-kpi-card">
-                        <div class="exec-kpi-icon" style="background:var(--success-soft);color:var(--success)">✅</div>
-                        <div class="exec-kpi-body">
-                            <div class="exec-kpi-value" id="kpiCompleted">0</div>
-                            <div class="exec-kpi-label">Completed</div>
-                            <div class="exec-kpi-trend" id="kpiCompletedPct"></div>
+                    <div class="kpi-card kpi-done">
+                        <div class="kpi-icon">✅</div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpiToTesting">0</div>
+                            <div class="kpi-label">Moved to Testing+</div>
                         </div>
                     </div>
-                    <div class="exec-kpi-card">
-                        <div class="exec-kpi-icon" style="background:var(--info-soft);color:var(--info)">🔄</div>
-                        <div class="exec-kpi-body">
-                            <div class="exec-kpi-value" id="kpiInProgress">0</div>
-                            <div class="exec-kpi-label">In Progress</div>
-                            <div class="exec-kpi-trend" id="kpiInProgressPct"></div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon">🔧</div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpiStillInDev">0</div>
+                            <div class="kpi-label">Still in Dev</div>
                         </div>
                     </div>
-                    <div class="exec-kpi-card">
-                        <div class="exec-kpi-icon" style="background:var(--danger-soft);color:var(--danger)">⚠️</div>
-                        <div class="exec-kpi-body">
-                            <div class="exec-kpi-value" id="kpiBlocked">0</div>
-                            <div class="exec-kpi-label">Blocked / At Risk</div>
-                            <div class="exec-kpi-trend" id="kpiBlockedPct"></div>
+                    <div class="kpi-card kpi-blocked">
+                        <div class="kpi-icon">🔄</div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpiFixing">0</div>
+                            <div class="kpi-label">Ongoing Fix</div>
                         </div>
                     </div>
-                    <div class="exec-kpi-card">
-                        <div class="exec-kpi-icon" style="background:var(--warning-soft);color:var(--warning)">⏱️</div>
-                        <div class="exec-kpi-body">
-                            <div class="exec-kpi-value" id="kpiAvgAge">0d</div>
-                            <div class="exec-kpi-label">Avg Task Age</div>
-                            <div class="exec-kpi-trend" id="kpiAvgAgeTrend"></div>
-                        </div>
-                    </div>
-                    <div class="exec-kpi-card">
-                        <div class="exec-kpi-icon" style="background:rgba(183,96,224,0.12);color:#b660e0">📈</div>
-                        <div class="exec-kpi-body">
-                            <div class="exec-kpi-value" id="kpiThroughput">0%</div>
-                            <div class="exec-kpi-label">Completion Rate</div>
-                            <div class="exec-kpi-trend" id="kpiThroughputTrend"></div>
+                    <div class="kpi-card kpi-rate">
+                        <div class="kpi-icon">📈</div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpiThroughput">0%</div>
+                            <div class="kpi-label">Throughput Rate</div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- Phase Breakdown Visual -->
+            <!-- Developer Breakdown Cards -->
             <section class="section">
-                <h2 class="section-title">Workflow Phase Distribution</h2>
-                <div class="phase-flow" id="phaseFlow"></div>
-            </section>
-
-            <!-- Charts Row 1 -->
-            <section class="section">
-                <div class="charts-grid-2">
-                    <div class="chart-card">
-                        <h3>Tasks by Phase</h3>
-                        <canvas id="phaseChart"></canvas>
-                    </div>
-                    <div class="chart-card">
-                        <h3>Priority Distribution</h3>
-                        <canvas id="priorityChart"></canvas>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Charts Row 2 -->
-            <section class="section">
-                <div class="charts-grid-2">
-                    <div class="chart-card">
-                        <h3>Tasks by Assignee</h3>
-                        <canvas id="assigneeChart"></canvas>
-                    </div>
-                    <div class="chart-card">
-                        <h3>Task Aging Analysis</h3>
-                        <canvas id="agingChart"></canvas>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Charts Row 3 -->
-            <section class="section">
-                <div class="charts-grid-2">
-                    <div class="chart-card">
-                        <h3>Tasks by Product / Tag</h3>
-                        <canvas id="tagChart"></canvas>
-                    </div>
-                    <div class="chart-card">
-                        <h3>Risk Assessment</h3>
-                        <canvas id="riskChart"></canvas>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Detailed Breakdown Table -->
-            <section class="section">
-                <div class="table-card">
-                    <div class="table-header">
-                        <h3>Tasks Detail</h3>
-                        <div class="table-header-actions">
-                            <span class="table-stats" id="tableStats"></span>
-                            <button class="btn btn-export" onclick="exportToCSV()">📥 Export CSV</button>
-                        </div>
-                    </div>
-                    <div class="table-wrapper">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th class="sortable" onclick="sortBy('name')">Task ↕</th>
-                                    <th class="sortable" onclick="sortBy('status')">Status ↕</th>
-                                    <th>Phase</th>
-                                    <th class="sortable" onclick="sortBy('assignee')">Assignee ↕</th>
-                                    <th class="sortable" onclick="sortBy('priority')">Priority ↕</th>
-                                    <th>Tags</th>
-                                    <th class="sortable" onclick="sortBy('age')">Age ↕</th>
-                                    <th>Risk</th>
-                                    <th class="sortable" onclick="sortBy('updated')">Updated ↕</th>
-                                </tr>
-                            </thead>
-                            <tbody id="breakdownTableBody"></tbody>
-                        </table>
-                    </div>
-                    <div class="table-pagination" id="tablePagination"></div>
-                </div>
+                <h2 class="section-title">Developer Breakdown</h2>
+                <div class="dev-grid" id="devGrid"></div>
             </section>
         </div>
     </div>
