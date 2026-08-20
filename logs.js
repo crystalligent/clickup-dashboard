@@ -225,14 +225,48 @@ function getButtonLabel(btnId) {
 // ─── Remove Duplicates ─────────────────────────────────────────────────────────
 
 async function removeDuplicates() {
-  if (!confirm('This will delete duplicate ClickUp tasks (keeps oldest copy of each). Continue?')) return;
-
   var btn = document.getElementById('dedupBtn');
   btn.disabled = true;
-  btn.textContent = '\u23F3 Cleaning...';
+  btn.textContent = '⏳ Scanning...';
 
   try {
     const password = getStoredPassword();
+
+    // Step 1: Preview duplicates
+    const previewRes = await fetch('/.netlify/functions/dedup-tasks?preview=true', {
+      headers: { 'X-Sync-Password': password }
+    });
+
+    if (previewRes.status === 401) { sessionStorage.removeItem('logs-auth'); location.reload(); return; }
+
+    const previewData = await previewRes.json();
+
+    if (!previewData.duplicates || previewData.duplicates.length === 0) {
+      btn.textContent = '✅ No duplicates found';
+      setTimeout(() => { btn.textContent = '🧹 Remove Duplicates'; btn.disabled = false; }, 3000);
+      return;
+    }
+
+    // Step 2: Show duplicates list and ask for confirmation
+    const dupCount = previewData.duplicateCount;
+    const dupList = previewData.duplicates
+      .map((d) => `IID #${d.iid} — keeping "${d.kept.name.substring(0, 60)}…" | removing ${d.toDelete.length} duplicate(s)`)
+      .join('\n');
+
+    const confirmed = confirm(
+      `Found ${dupCount} duplicate task(s) across ${previewData.duplicates.length} issue(s):\n\n` +
+      dupList +
+      `\n\nProceed with removal? (Keeps oldest copy of each)`
+    );
+
+    if (!confirmed) {
+      btn.textContent = '🧹 Remove Duplicates';
+      btn.disabled = false;
+      return;
+    }
+
+    // Step 3: Proceed with deletion
+    btn.textContent = '⏳ Removing...';
     const res = await fetch('/.netlify/functions/dedup-tasks', {
       headers: { 'X-Sync-Password': password }
     });
@@ -240,11 +274,11 @@ async function removeDuplicates() {
     if (res.status === 401) { sessionStorage.removeItem('logs-auth'); location.reload(); return; }
 
     const data = await res.json();
-    btn.textContent = '\u2705 Removed ' + (data.duplicatesRemoved || 0) + ' duplicates';
-    setTimeout(() => { btn.textContent = '\uD83E\uDDF9 Remove Duplicates'; btn.disabled = false; }, 4000);
+    btn.textContent = '✅ Removed ' + (data.duplicatesRemoved || 0) + ' duplicates';
+    setTimeout(() => { btn.textContent = '🧹 Remove Duplicates'; btn.disabled = false; }, 4000);
   } catch (err) {
-    btn.textContent = '\u274C Failed';
-    setTimeout(() => { btn.textContent = '\uD83E\uDDF9 Remove Duplicates'; btn.disabled = false; }, 3000);
+    btn.textContent = '❌ Failed';
+    setTimeout(() => { btn.textContent = '🧹 Remove Duplicates'; btn.disabled = false; }, 3000);
   }
 }
 

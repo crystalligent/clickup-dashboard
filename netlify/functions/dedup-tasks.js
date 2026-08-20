@@ -48,6 +48,7 @@ exports.handler = async (event) => {
   }
 
   const listId = getEnv('CLICKUP_LIST_ID');
+  const previewOnly = event.queryStringParameters?.preview === 'true';
 
   // Fetch all tasks
   let allTasks = [];
@@ -68,28 +69,44 @@ exports.handler = async (event) => {
     if (match) {
       const iid = match[1];
       if (!iidMap[iid]) iidMap[iid] = [];
-      iidMap[iid].push({ id: task.id, created: parseInt(task.date_created || '0', 10) });
+      iidMap[iid].push({ id: task.id, name: task.name, created: parseInt(task.date_created || '0', 10) });
     }
   }
 
-  // Find duplicates and delete newer copies (keep oldest)
+  // Find duplicates
+  const duplicates = [];
+  for (const [iid, copies] of Object.entries(iidMap)) {
+    if (copies.length <= 1) continue;
+    copies.sort((a, b) => a.created - b.created);
+    duplicates.push({
+      iid,
+      kept: { id: copies[0].id, name: copies[0].name },
+      toDelete: copies.slice(1).map((c) => ({ id: c.id, name: c.name })),
+    });
+  }
+
+  // Preview mode: return list without deleting
+  if (previewOnly) {
+    return jsonResponse(200, {
+      total: allTasks.length,
+      unique: Object.keys(iidMap).length,
+      duplicateCount: duplicates.reduce((sum, d) => sum + d.toDelete.length, 0),
+      duplicates,
+    });
+  }
+
+  // Delete newer copies (keep oldest)
   let deleted = 0;
   const deletedIds = [];
 
-  for (const [iid, copies] of Object.entries(iidMap)) {
-    if (copies.length <= 1) continue;
-
-    // Sort by creation time — keep the oldest (smallest timestamp)
-    copies.sort((a, b) => a.created - b.created);
-
-    // Delete all except the first (oldest)
-    for (let i = 1; i < copies.length; i++) {
+  for (const dup of duplicates) {
+    for (const copy of dup.toDelete) {
       try {
-        await clickupRequest('DELETE', `/task/${copies[i].id}`);
+        await clickupRequest('DELETE', `/task/${copy.id}`);
         deleted++;
-        deletedIds.push({ iid, taskId: copies[i].id });
+        deletedIds.push({ iid: dup.iid, taskId: copy.id });
       } catch (e) {
-        console.error(`Failed to delete task ${copies[i].id} (IID ${iid}):`, e.message);
+        console.error(`Failed to delete task ${copy.id} (IID ${dup.iid}):`, e.message);
       }
     }
   }

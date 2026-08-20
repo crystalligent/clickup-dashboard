@@ -156,6 +156,7 @@ function hasLabel(labels, title) {
 
 function getExpectedStatus(labels, issueState) {
   if (issueState === 'closed') return 'Closed';
+  if (hasLabel(labels, 'RESOLVED - NO CODE CHANGES')) return 'resolved - no code changes';
   if (hasLabel(labels, 'Released')) return 'released to prod';
   if (hasLabel(labels, 'For Release')) return 'for release';
   if (hasLabel(labels, 'Done') || hasLabel(labels, 'Done Development')) return 'done development';
