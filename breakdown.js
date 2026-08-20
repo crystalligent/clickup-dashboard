@@ -369,6 +369,7 @@ function renderDashboard() {
     document.getElementById('dashboard').style.display = 'block';
     renderKPIs();
     renderDevGrid();
+    renderTicketList();
 }
 
 function renderKPIs() {
@@ -399,6 +400,40 @@ function renderKPIs() {
 }
 
 // --- Developer Cards ---
+
+// Full workflow status order for sorting
+const WORKFLOW_STATUS_ORDER = [
+    'pending review (qa)',
+    'ongoing review',
+    'open',
+    'defrerred',
+    'assigned to dev',
+    'ongoing dev',
+    'done development',
+    'ongoing fix',
+    'for verification',
+    'merged',
+    'for deployment to hotfix',
+    'for testing in staging',
+    'for testing in hotfix',
+    'ongoing testing',
+    'testing: passed',
+    'testing: failed',
+    'for release',
+    'resolved - no code changes',
+    'released to prod',
+    'closed'
+];
+
+function getStatusOrderIndex(status) {
+    const idx = WORKFLOW_STATUS_ORDER.indexOf(status.toLowerCase());
+    return idx === -1 ? 999 : idx;
+}
+
+function onCardSortChange() {
+    currentSort = document.getElementById('cardSort').value;
+    renderDevGrid();
+}
 
 function renderDevGrid() {
     const devData = {};
@@ -432,22 +467,51 @@ function renderDevGrid() {
         });
     });
 
-    // Sort by status phase order within each card's tasks, and sort cards by total
-    const sorted = Object.values(devData).sort((a, b) => b.total - a.total);
+    let sorted = Object.values(devData);
 
-    // Sort tasks within each developer by status workflow order
-    const STATUS_ORDER = [
-        ...PAST_DEV_STATUSES.slice().reverse(), // done statuses last
-        ...DEV_STAGES.slice().reverse()
-    ];
+    // Sort developer cards based on selected sort
+    switch (currentSort) {
+        case 'total-desc':
+            sorted.sort((a, b) => b.total - a.total);
+            break;
+        case 'total-asc':
+            sorted.sort((a, b) => a.total - b.total);
+            break;
+        case 'throughput-desc':
+            sorted.sort((a, b) => {
+                const ta = a.total > 0 ? a.movedToTesting / a.total : 0;
+                const tb = b.total > 0 ? b.movedToTesting / b.total : 0;
+                return tb - ta;
+            });
+            break;
+        case 'throughput-asc':
+            sorted.sort((a, b) => {
+                const ta = a.total > 0 ? a.movedToTesting / a.total : 0;
+                const tb = b.total > 0 ? b.movedToTesting / b.total : 0;
+                return ta - tb;
+            });
+            break;
+        case 'status':
+            // Sort cards by the earliest (most advanced) status among their tasks
+            sorted.sort((a, b) => {
+                const aMax = Math.max(...a.tasks.map(t => getStatusOrderIndex(t.status?.status || '')));
+                const bMax = Math.max(...b.tasks.map(t => getStatusOrderIndex(t.status?.status || '')));
+                return bMax - aMax;
+            });
+            break;
+        case 'name-asc':
+            sorted.sort((a, b) => a.name.localeCompare(b.name));
+            break;
+        default:
+            sorted.sort((a, b) => b.total - a.total);
+    }
 
+    // Sort tasks within each developer by workflow status order
     sorted.forEach(dev => {
         dev.tasks.sort((a, b) => {
-            const sa = (a.status?.status || '').toLowerCase();
-            const sb = (b.status?.status || '').toLowerCase();
-            const ia = STATUS_ORDER.indexOf(sa);
-            const ib = STATUS_ORDER.indexOf(sb);
-            return ia - ib;
+            const sa = getStatusOrderIndex(a.status?.status || '');
+            const sb = getStatusOrderIndex(b.status?.status || '');
+            return sa - sb;
         });
     });
 
@@ -516,6 +580,94 @@ function renderDevGrid() {
             </div>
         </div>`;
     }).join('');
+}
+
+// --- Ticket List ---
+
+function renderTicketList() {
+    const search = (document.getElementById('ticketSearch')?.value || '').toLowerCase();
+    const sortMode = document.getElementById('ticketSort')?.value || 'status';
+
+    let tasks = [...devTasks];
+
+    // Search filter
+    if (search) {
+        tasks = tasks.filter(t => t.name.toLowerCase().includes(search));
+    }
+
+    // Sort
+    tasks.sort((a, b) => {
+        switch (sortMode) {
+            case 'status':
+                const sa = getStatusOrderIndex(a.status?.status || '');
+                const sb = getStatusOrderIndex(b.status?.status || '');
+                return sa - sb;
+            case 'assignee':
+                const aa = a.assignees?.[0]?.username || 'zzz';
+                const ab = b.assignees?.[0]?.username || 'zzz';
+                return aa.localeCompare(ab);
+            case 'priority':
+                const pa = a.priority?.orderindex || '99';
+                const pb = b.priority?.orderindex || '99';
+                return pa.toString().localeCompare(pb.toString());
+            case 'updated-desc':
+                return (parseInt(b.date_updated) || 0) - (parseInt(a.date_updated) || 0);
+            case 'name-asc':
+                return a.name.localeCompare(b.name);
+            default:
+                return 0;
+        }
+    });
+
+    document.getElementById('ticketListCount').textContent = `${tasks.length} tickets`;
+
+    // Group by status when sorted by status
+    if (sortMode === 'status') {
+        let currentStatus = '';
+        let html = '';
+
+        tasks.forEach(t => {
+            const status = t.status?.status || 'Unknown';
+            const statusColor = t.status?.color || '#8b99a8';
+
+            if (status !== currentStatus) {
+                currentStatus = status;
+                const statusCount = tasks.filter(tk => (tk.status?.status || 'Unknown') === status).length;
+                html += `<div class="ticket-group-header">
+                    <span class="ticket-group-dot" style="background:${statusColor}"></span>
+                    <span class="ticket-group-name">${escapeHtml(status)}</span>
+                    <span class="ticket-group-count">${statusCount}</span>
+                </div>`;
+            }
+
+            html += renderTicketItem(t);
+        });
+
+        document.getElementById('ticketListBody').innerHTML = html;
+    } else {
+        document.getElementById('ticketListBody').innerHTML = tasks.map(t => renderTicketItem(t)).join('');
+    }
+}
+
+function renderTicketItem(task) {
+    const status = task.status?.status || 'Unknown';
+    const statusColor = task.status?.color || '#8b99a8';
+    const assignees = task.assignees?.map(a => a.username).join(', ') || 'Unassigned';
+    const priority = task.priority?.priority || '';
+    const priorityColor = task.priority?.color || '';
+    const tags = (task.tags || []).map(tag =>
+        `<span class="ticket-tag" style="background:${tag.tag_bg}33;color:${tag.tag_fg}">${escapeHtml(tag.name)}</span>`
+    ).join('');
+    const url = task.url || '#';
+
+    return `<div class="ticket-item">
+        <span class="ticket-item-dot" style="background:${statusColor}"></span>
+        <a href="${url}" target="_blank" rel="noopener" class="ticket-item-name">${escapeHtml(task.name)}</a>
+        <span class="ticket-item-assignee">${escapeHtml(assignees)}</span>
+        ${priorityColor ? `<span class="ticket-item-priority" style="background:${priorityColor}"></span>` : ''}
+        <span class="ticket-item-status">${escapeHtml(status)}</span>
+        ${tags}
+    </div>`;
 }
 
 // --- Helpers ---

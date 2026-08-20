@@ -166,8 +166,42 @@
 
             <!-- Developer Breakdown Cards -->
             <section class="section">
-                <h2 class="section-title">Developer Breakdown</h2>
+                <div class="section-header-row">
+                    <h2 class="section-title">Developer Breakdown</h2>
+                    <div class="sort-controls">
+                        <label class="sort-label">Sort by:</label>
+                        <select id="cardSort" onchange="onCardSortChange()">
+                            <option value="total-desc">Total (High → Low)</option>
+                            <option value="total-asc">Total (Low → High)</option>
+                            <option value="throughput-desc">Throughput (High → Low)</option>
+                            <option value="throughput-asc">Throughput (Low → High)</option>
+                            <option value="status">Status (Workflow Order)</option>
+                            <option value="name-asc">Name (A → Z)</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="dev-grid" id="devGrid"></div>
+            </section>
+
+            <!-- Full Ticket List -->
+            <section class="section">
+                <div class="ticket-list-card">
+                    <div class="ticket-list-header">
+                        <h2 class="section-title">Ticket List</h2>
+                        <div class="ticket-list-actions">
+                            <span class="ticket-list-count" id="ticketListCount">0 tickets</span>
+                            <select id="ticketSort" onchange="renderTicketList()">
+                                <option value="status">Sort by Status</option>
+                                <option value="assignee">Sort by Assignee</option>
+                                <option value="priority">Sort by Priority</option>
+                                <option value="updated-desc">Last Updated</option>
+                                <option value="name-asc">Name (A → Z)</option>
+                            </select>
+                            <input type="text" id="ticketSearch" placeholder="🔍 Search tickets..." oninput="renderTicketList()" class="ticket-search" />
+                        </div>
+                    </div>
+                    <div class="ticket-list-body" id="ticketListBody"></div>
+                </div>
             </section>
         </div>
     </div>
