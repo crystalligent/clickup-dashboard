@@ -1,0 +1,461 @@
+/* Tasks Breakdown Page — Executive View Styles */
+
+/* Filters Panel */
+.filters-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+}
+
+.filters-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.filters-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.filter-group {
+    margin-bottom: 18px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid rgba(42, 58, 74, 0.5);
+}
+
+.filter-group:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.filter-group-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 10px;
+}
+
+.filter-hint {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    font-style: italic;
+}
+
+.inline-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.inline-filters select {
+    padding: 8px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 0.82rem;
+    min-width: 150px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.inline-filters select:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.search-input {
+    width: 100%;
+    padding: 10px 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 0.85rem;
+    transition: border-color 0.15s;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.search-input::placeholder {
+    color: var(--text-dim);
+}
+
+/* Date Range (reuse from other pages) */
+.date-range-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.preset-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface-2);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 500;
+    transition: all 0.15s;
+}
+
+.preset-btn:hover {
+    background: var(--surface-3);
+    color: var(--text);
+}
+
+.preset-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+.date-range-inputs {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.date-range-inputs .field {
+    min-width: 160px;
+    flex: 0;
+}
+
+.date-range-inputs input[type="date"] {
+    padding: 8px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 0.85rem;
+}
+
+.date-range-inputs input[type="date"]:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.date-range-info {
+    margin-top: 12px;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    font-weight: 500;
+}
+
+/* Exclude Checkboxes */
+.exclude-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.exclude-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface-2);
+    cursor: pointer;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    user-select: none;
+}
+
+.exclude-chip:hover {
+    background: var(--surface-3);
+    color: var(--text);
+}
+
+.exclude-chip.excluded {
+    background: var(--danger-soft);
+    border-color: var(--danger);
+    color: var(--danger);
+    text-decoration: line-through;
+}
+
+.exclude-chip .chip-x {
+    font-size: 0.7rem;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.exclude-chip.excluded .chip-x {
+    opacity: 1;
+}
+
+/* Executive KPI Grid */
+.exec-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.exec-kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.exec-kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.exec-kpi-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+
+.exec-kpi-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.exec-kpi-value {
+    font-size: 1.8rem;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--text);
+}
+
+.exec-kpi-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-top: 4px;
+}
+
+.exec-kpi-trend {
+    font-size: 0.72rem;
+    margin-top: 6px;
+    font-weight: 600;
+}
+
+.exec-kpi-trend.positive {
+    color: var(--success);
+}
+
+.exec-kpi-trend.negative {
+    color: var(--danger);
+}
+
+.exec-kpi-trend.neutral {
+    color: var(--text-dim);
+}
+
+/* Phase Flow Visualization */
+.phase-flow {
+    display: flex;
+    gap: 4px;
+    align-items: stretch;
+    min-height: 100px;
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.phase-flow-item {
+    flex: 1;
+    min-width: 100px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px 12px;
+    text-align: center;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    transition: transform 0.15s, background 0.15s;
+}
+
+.phase-flow-item:hover {
+    transform: scale(1.03);
+    z-index: 1;
+}
+
+.phase-flow-item::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+}
+
+.phase-flow-count {
+    font-size: 1.8rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.phase-flow-label {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    font-weight: 600;
+}
+
+.phase-flow-pct {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    font-weight: 500;
+}
+
+/* Table enhancements */
+.table-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.age-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.age-fresh {
+    background: rgba(0, 214, 143, 0.12);
+    color: #00d68f;
+}
+
+.age-normal {
+    background: rgba(77, 166, 255, 0.12);
+    color: #4da6ff;
+}
+
+.age-aging {
+    background: rgba(255, 181, 71, 0.12);
+    color: #ffb547;
+}
+
+.age-stale {
+    background: rgba(255, 119, 71, 0.12);
+    color: #ff7747;
+}
+
+.age-critical {
+    background: rgba(255, 77, 106, 0.12);
+    color: #ff4d6a;
+}
+
+.risk-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.risk-low {
+    background: rgba(0, 214, 143, 0.12);
+    color: #00d68f;
+}
+
+.risk-medium {
+    background: rgba(255, 181, 71, 0.12);
+    color: #ffb547;
+}
+
+.risk-high {
+    background: rgba(255, 119, 71, 0.12);
+    color: #ff7747;
+}
+
+.risk-critical {
+    background: rgba(255, 77, 106, 0.15);
+    color: #ff4d6a;
+}
+
+.phase-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+/* Export Button */
+.btn-export {
+    background: rgba(0, 214, 143, 0.12);
+    border-color: #00d68f;
+    color: #00d68f;
+    font-weight: 600;
+}
+
+.btn-export:hover {
+    background: #00d68f;
+    color: #fff;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .exec-kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .phase-flow {
+        flex-wrap: wrap;
+    }
+    .phase-flow-item {
+        min-width: calc(33% - 4px);
+    }
+    .inline-filters {
+        flex-direction: column;
+    }
+    .inline-filters select {
+        min-width: 100%;
+    }
+    .date-range-inputs {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+@media (max-width: 480px) {
+    .exec-kpi-grid {
+        grid-template-columns: 1fr;
+    }
+    .phase-flow-item {
+        min-width: calc(50% - 4px);
+    }
+}
