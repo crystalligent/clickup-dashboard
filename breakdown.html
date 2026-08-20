@@ -77,10 +77,14 @@
 
                 <!-- Task List Filters -->
                 <div class="filter-row">
+                    <label class="filter-row-label">Statuses <span class="filter-clear-link" onclick="clearStatusFilter()">(clear all)</span></label>
+                    <div class="status-chips-container" id="filterStatusChips">
+                        <span class="filter-hint">Load data to see statuses</span>
+                    </div>
+                </div>
+
+                <div class="filter-row">
                     <div class="inline-filters">
-                        <select id="filterStatus" onchange="applyFiltersAndRender()">
-                            <option value="">All Statuses</option>
-                        </select>
                         <select id="filterPriority" onchange="applyFiltersAndRender()">
                             <option value="">All Priorities</option>
                         </select>

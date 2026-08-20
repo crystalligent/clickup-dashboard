@@ -62,6 +62,7 @@ let allTasks = [];
 let devTasks = [];
 let allFetchedTasks = [];
 let excludedAssignees = new Set();
+let selectedStatuses = new Set(); // multi-select status filter
 let currentSort = 'total-desc'; // default sort for cards
 
 // --- Config ---
@@ -257,12 +258,9 @@ async function fetchBreakdownData() {
             page++;
         }
 
-        // Filter to dev pipeline tasks only
+        // Include ALL tasks — no status pipeline filtering
         allTasks = tasks;
-        devTasks = tasks.filter(t => {
-            const status = (t.status?.status || '').toLowerCase();
-            return DEV_PIPELINE_STATUSES.includes(status);
-        });
+        devTasks = [...tasks];
 
         allFetchedTasks = [...devTasks];
         populateExcludeCheckboxes();
@@ -270,7 +268,7 @@ async function fetchBreakdownData() {
         applyFiltersAndRender();
 
         document.getElementById('dateRangeInfo').textContent =
-            `${tasks.length} tasks updated in range → ${devTasks.length} in development pipeline`;
+            `${tasks.length} tasks loaded in range`;
 
     } catch (err) {
         showError(err.message);
@@ -320,8 +318,15 @@ function populateFilterDropdowns() {
     const assignees = [...new Set(allFetchedTasks.flatMap(t => getDevelopers(t).map(a => a.username)))].filter(Boolean).sort();
     const tags = [...new Set(allFetchedTasks.flatMap(t => (t.tags || []).map(tag => tag.name)))].filter(Boolean).sort();
 
-    document.getElementById('filterStatus').innerHTML =
-        '<option value="">All Statuses</option>' + statuses.map(s => `<option value="${s}">${s}</option>`).join('');
+    // Multi-select status chips
+    const statusContainer = document.getElementById('filterStatusChips');
+    statusContainer.innerHTML = statuses.map(s => {
+        const isSelected = selectedStatuses.has(s);
+        return `<label class="status-chip ${isSelected ? 'active' : ''}" onclick="toggleStatusFilter('${escapeHtml(s)}', this)">
+            <span>${escapeHtml(s)}</span>
+        </label>`;
+    }).join('');
+
     document.getElementById('filterPriority').innerHTML =
         '<option value="">All Priorities</option>' + priorities.map(p => `<option value="${p}">${capitalize(p)}</option>`).join('');
     document.getElementById('filterAssignee').innerHTML =
@@ -330,10 +335,26 @@ function populateFilterDropdowns() {
         '<option value="">All Tags</option>' + tags.map(t => `<option value="${t}">${t}</option>`).join('');
 }
 
+function toggleStatusFilter(status, el) {
+    if (selectedStatuses.has(status)) {
+        selectedStatuses.delete(status);
+        el.classList.remove('active');
+    } else {
+        selectedStatuses.add(status);
+        el.classList.add('active');
+    }
+    applyFiltersAndRender();
+}
+
+function clearStatusFilter() {
+    selectedStatuses.clear();
+    document.querySelectorAll('.status-chip').forEach(chip => chip.classList.remove('active'));
+    applyFiltersAndRender();
+}
+
 // --- Apply Filters & Render ---
 
 function applyFiltersAndRender() {
-    const statusFilter = document.getElementById('filterStatus').value;
     const priorityFilter = document.getElementById('filterPriority').value;
     const assigneeFilter = document.getElementById('filterAssignee').value;
     const tagFilter = document.getElementById('filterTag').value;
@@ -350,8 +371,12 @@ function applyFiltersAndRender() {
         });
     }
 
-    // Filters
-    if (statusFilter) tasks = tasks.filter(t => (t.status?.status || 'Unknown') === statusFilter);
+    // Multi-select status filter
+    if (selectedStatuses.size > 0) {
+        tasks = tasks.filter(t => selectedStatuses.has(t.status?.status || 'Unknown'));
+    }
+
+    // Other filters
     if (priorityFilter) {
         tasks = tasks.filter(t => t.priority?.priority === priorityFilter);
     }
@@ -365,17 +390,21 @@ function applyFiltersAndRender() {
             if (phaseFilter === 'Release') return ['merged', 'for deployment to hotfix', 'for release'].includes(status);
             if (phaseFilter === 'Done') return ['released to prod', 'resolved - no code changes', 'closed'].includes(status);
             if (phaseFilter === 'Blocked') return status === 'testing: failed';
-            if (phaseFilter === 'Backlog') return ['open', 'defrerred'].includes(status);
+            if (phaseFilter === 'Backlog') return ['open', 'defrerred', 'pending review (qa)', 'ongoing review'].includes(status);
             return true;
         });
     }
 
     devTasks = tasks;
 
+    const filterInfo = [];
+    if (excludedAssignees.size > 0) filterInfo.push(`excluding ${excludedAssignees.size} developer(s)`);
+    if (selectedStatuses.size > 0) filterInfo.push(`${selectedStatuses.size} status(es) selected`);
+    if (priorityFilter || assigneeFilter || tagFilter || phaseFilter) filterInfo.push('filters active');
+
     document.getElementById('dateRangeInfo').textContent =
-        `${allFetchedTasks.length} in dev pipeline` +
-        (excludedAssignees.size > 0 ? ` → ${devTasks.length} after excluding ${excludedAssignees.size} developer(s)` : '') +
-        (devTasks.length !== allFetchedTasks.length && excludedAssignees.size === 0 ? ` → ${devTasks.length} after filters` : '');
+        `${allFetchedTasks.length} total tasks` +
+        (filterInfo.length > 0 ? ` → ${devTasks.length} shown (${filterInfo.join(', ')})` : '');
 
     renderDashboard();
 }

@@ -130,6 +130,53 @@
     gap: 8px;
 }
 
+/* Multi-select Status Chips */
+.status-chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface-2);
+    cursor: pointer;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    user-select: none;
+}
+
+.status-chip:hover {
+    background: var(--surface-3);
+    color: var(--text);
+}
+
+.status-chip.active {
+    background: var(--primary-soft);
+    border-color: var(--primary);
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.filter-clear-link {
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: var(--text-dim);
+    cursor: pointer;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.filter-clear-link:hover {
+    color: var(--primary);
+}
+
 .exclude-chip {
     display: inline-flex;
     align-items: center;
