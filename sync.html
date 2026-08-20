@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sync by URL — GitLab to ClickUp</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="sync.css">
+</head>
+<body>
+    <!-- Login Gate -->
+    <div class="login-gate" id="loginGate">
+        <div class="login-box">
+            <h2>🔒 Sync by URL</h2>
+            <p>Enter password to access</p>
+            <input type="password" id="loginPassword" placeholder="Password" onkeydown="if(event.key==='Enter')authenticate()" autofocus />
+            <button class="btn btn-primary" onclick="authenticate()">Unlock</button>
+            <div class="login-error" id="loginError" style="display:none;">Incorrect password</div>
+        </div>
+    </div>
+
+    <div class="app" id="mainApp" style="display:none;">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1>Sync by URL</h1>
+                <span class="subtitle">GitLab → ClickUp</span>
+            </div>
+            <div class="header-right">
+                <a href="index.html" class="btn">← Dashboard</a>
+                <a href="breakdown.html" class="btn">📋 Tasks Breakdown</a>
+            </div>
+        </header>
+
+        <!-- Sync Panel -->
+        <section class="section">
+            <div class="sync-panel">
+                <div class="sync-panel-header">
+                    <h2>🔗 Sync a GitLab Issue</h2>
+                    <p class="sync-description">Paste a GitLab issue URL to sync it to ClickUp. If the task already exists, it will be updated. Otherwise, a new task will be created.</p>
+                </div>
+
+                <div class="sync-input-row">
+                    <input type="text" id="issueUrl" class="sync-url-input" placeholder="https://tools.iripple.com/project-name/repo/-/issues/1234" />
+                    <button class="btn btn-primary btn-sync" id="syncBtn" onclick="syncIssue()">🚀 Sync Issue</button>
+                </div>
+
+                <div class="sync-help">
+                    <span class="sync-help-label">Accepted format:</span>
+                    <code>https://tools.iripple.com/{group}/{project}/-/issues/{iid}</code>
+                </div>
+            </div>
+        </section>
+
+        <!-- Result -->
+        <section class="section" id="resultSection" style="display:none;">
+            <div class="sync-result" id="syncResult"></div>
+        </section>
+
+        <!-- History -->
+        <section class="section">
+            <div class="sync-history-card">
+                <div class="sync-history-header">
+                    <h3>Sync History</h3>
+                    <button class="btn btn-sm" onclick="clearHistory()">Clear</button>
+                </div>
+                <div class="sync-history-body" id="syncHistory">
+                    <div class="sync-empty">No syncs performed yet in this session.</div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="sync.js"></script>
+</body>
+</html>
