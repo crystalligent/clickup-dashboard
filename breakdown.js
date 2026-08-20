@@ -89,65 +89,19 @@ function toggleConfig() {
     panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 }
 
-// --- Roles ---
-
-function getProjectManagers() {
-    const stored = localStorage.getItem('clickup_project_managers');
-    return stored ? JSON.parse(stored) : [];
-}
-
-function getKnownTesters() {
-    const stored = localStorage.getItem('clickup_known_testers');
-    return stored ? JSON.parse(stored) : [];
-}
+// --- Roles (not used in breakdown — uses current assignee directly) ---
 
 // --- Developer Attribution ---
+// For the Tasks Breakdown page, use the CURRENT ASSIGNEE directly.
+// This avoids the complex watcher-based attribution logic where tasks
+// in testing stages get attributed to a different developer via watchers.
 
 function getDevelopers(task) {
-    const status = (task.status?.status || '').toLowerCase();
     const currentAssignees = (task.assignees || []);
-    const currentAssigneeNames = currentAssignees.map(a => a.username);
-    const projectManagers = getProjectManagers();
-    const knownTesters = getKnownTesters();
-
-    if (DEV_STAGES.includes(status)) {
-        return currentAssignees.length > 0 ? currentAssignees : (task.creator ? [task.creator] : []);
-    }
-
-    if (TESTING_STAGES.includes(status)) {
-        return getDevFromWatchers(task, currentAssigneeNames, projectManagers, true);
-    }
-
-    const assigneeIsTester = currentAssigneeNames.some(name => knownTesters.includes(name));
-    if (assigneeIsTester) {
-        return getDevFromWatchers(task, currentAssigneeNames, projectManagers, false);
-    }
-
     if (currentAssignees.length > 0) {
         return currentAssignees;
     }
-
-    return task.creator ? [task.creator] : [];
-}
-
-function getDevFromWatchers(task, currentAssigneeNames, projectManagers, allowAssigneeFallback) {
-    const watchers = task.watchers || [];
-
-    let developers = watchers.filter(w =>
-        !currentAssigneeNames.includes(w.username) &&
-        !projectManagers.includes(w.username)
-    );
-
-    if (developers.length > 0) return developers;
-
-    if (allowAssigneeFallback) {
-        const assigneeObjects = (task.assignees || []);
-        if (assigneeObjects.length > 0) return assigneeObjects;
-    }
-
-    let devsWithPM = watchers.filter(w => !currentAssigneeNames.includes(w.username));
-    if (devsWithPM.length > 0) return devsWithPM;
-
+    // Fallback: creator
     return task.creator ? [task.creator] : [];
 }
 
