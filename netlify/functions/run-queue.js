@@ -203,24 +203,8 @@ exports.handler = async (event) => {
   }
 
   try {
-    // Read queue via HTTP to queue-status (ensures same Blob context)
-    const siteUrl = process.env.URL || '';
-    let queue = [];
-
-    if (siteUrl) {
-      const qRes = await fetch(`${siteUrl}/.netlify/functions/queue-status`, {
-        headers: { 'X-Sync-Password': process.env.LOGS_PASSWORD || '' },
-      });
-      if (qRes.ok) {
-        const qData = await qRes.json();
-        queue = qData.items || [];
-      } else {
-        console.error(`[run-queue] queue-status returned ${qRes.status}`);
-        queue = await getQueue();
-      }
-    } else {
-      queue = await getQueue();
-    }
+    // Read queue directly from Blobs (HTTP delegation to queue-status is unreliable)
+    const queue = await getQueue();
 
     if (queue.length === 0) {
       console.log('[run-queue] Queue empty, nothing to process');
@@ -258,19 +242,8 @@ exports.handler = async (event) => {
       }
     }
 
-    // Remove processed items via HTTP PATCH (same Blob context as queue-status)
-    if (siteUrl && successfulIids.length > 0) {
-      for (const iid of successfulIids) {
-        try {
-          await fetch(`${siteUrl}/.netlify/functions/queue-status?remove=${iid}`, {
-            method: 'PATCH',
-            headers: { 'X-Sync-Password': process.env.LOGS_PASSWORD || '' },
-          });
-        } catch (e) {
-          console.error(`[run-queue] Failed to remove #${iid} from queue: ${e.message}`);
-        }
-      }
-    } else if (successfulIids.length > 0) {
+    // Remove processed items directly from Blobs
+    if (successfulIids.length > 0) {
       const updatedQueue = queue.filter((item) => !successfulIids.includes(String(item.iid)));
       await saveQueue(updatedQueue);
     }

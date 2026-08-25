@@ -120,25 +120,28 @@ exports.handler = async (event) => {
       added_at: new Date().toISOString(),
     }));
 
-    // Write to queue via HTTP POST to queue-status (ensures Blobs context works)
-    const siteUrl = process.env.URL || '';
+    // Write to queue directly via Blobs (HTTP POST to queue-status is unreliable
+    // from scheduled contexts and can fail silently)
     let queueSize = 0;
-
-    if (siteUrl) {
-      try {
-        const res = await fetch(`${siteUrl}/.netlify/functions/queue-status`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Sync-Password': process.env.LOGS_PASSWORD || '' },
-          body: JSON.stringify({ issues: queueItems }),
-        });
-        const data = await res.json();
-        queueSize = data.queueSize || 0;
-      } catch (e) {
-        console.log(`[sync-trigger] HTTP queue write failed: ${e.message}, trying direct`);
-        queueSize = await enqueue(unique);
-      }
-    } else {
+    try {
       queueSize = await enqueue(unique);
+    } catch (e) {
+      console.error(`[sync-trigger] Direct queue write failed: ${e.message}`);
+      // Fallback: try HTTP POST to queue-status
+      const siteUrl = process.env.URL || '';
+      if (siteUrl) {
+        try {
+          const res = await fetch(`${siteUrl}/.netlify/functions/queue-status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Sync-Password': process.env.LOGS_PASSWORD || '' },
+            body: JSON.stringify({ issues: queueItems }),
+          });
+          const data = await res.json();
+          queueSize = data.queueSize || 0;
+        } catch (e2) {
+          console.error(`[sync-trigger] HTTP queue write also failed: ${e2.message}`);
+        }
+      }
     }
 
     await saveLastSyncTime(new Date());

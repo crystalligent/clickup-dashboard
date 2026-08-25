@@ -192,30 +192,8 @@ async function processIssue(item) {
 exports.handler = async (event) => {
   console.log(`[process-queue] Scheduled run at ${new Date().toISOString()}`);
 
-  const siteUrl = process.env.URL || '';
-
-  // Strategy 1: Try delegating to run-queue via HTTP (with retry)
-  if (siteUrl) {
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        const res = await fetch(`${siteUrl}/.netlify/functions/run-queue`, {
-          headers: { 'X-Sync-Password': process.env.LOGS_PASSWORD || '' },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          console.log(`[process-queue] run-queue response:`, JSON.stringify(data));
-          return jsonResponse(200, data);
-        }
-        console.log(`[process-queue] run-queue returned ${res.status}, attempt ${attempt}`);
-      } catch (err) {
-        console.log(`[process-queue] fetch attempt ${attempt} failed: ${err.message}`);
-        if (attempt < 2) await new Promise((r) => setTimeout(r, 1000));
-      }
-    }
-    console.log('[process-queue] HTTP delegation failed, processing directly');
-  }
-
-  // Strategy 2: Process directly (fallback)
+  // Process directly from Blobs (no HTTP delegation — scheduled functions
+  // cannot reliably call other functions via HTTP on Netlify)
   try {
     const queue = await getQueue();
 
