@@ -8,7 +8,7 @@
  * Schedule: Every 30 minutes
  */
 
-const { enqueue, getLastSyncTime, saveLastSyncTime } = require('./utils/queue');
+const { initBlobContext, enqueue, getLastSyncTime, saveLastSyncTime } = require('./utils/queue');
 
 function getEnv(key, fallback) {
   const val = process.env[key];
@@ -52,6 +52,9 @@ async function getIssuesByMilestone(milestoneName, since) {
 
 exports.handler = async (event) => {
   console.log(`[sync-gitlab] Triggering sync at ${new Date().toISOString()}`);
+
+  // Initialize Blob context for Lambda-compatible functions
+  initBlobContext(event);
 
   try {
     const milestoneNames = getEnv('GITLAB_MILESTONES', 'For Development,For Review,Ongoing')

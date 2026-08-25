@@ -8,7 +8,7 @@
  * "Process Now" button call this endpoint.
  */
 
-const { getQueue, saveQueue } = require('./utils/queue');
+const { initBlobContext, getQueue, saveQueue } = require('./utils/queue');
 const { logRun } = require('./utils/logger');
 
 const CLICKUP_API = 'https://api.clickup.com/api/v2';
@@ -192,6 +192,9 @@ async function processIssue(item) {
 
 exports.handler = async (event) => {
   console.log(`[run-queue] Running at ${new Date().toISOString()}`);
+
+  // Initialize Blob context for Lambda-compatible functions
+  initBlobContext(event);
 
   // Password protection
   const requiredPassword = process.env.LOGS_PASSWORD;

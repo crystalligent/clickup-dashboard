@@ -53,6 +53,14 @@ function jsonResponse(statusCode, body) {
 }
 
 exports.handler = async (event) => {
+  // Initialize Blob context for Lambda-compatible functions
+  try {
+    const { connectLambda } = require('@netlify/blobs');
+    connectLambda(event);
+  } catch (e) {
+    console.error('[logs-store] Failed to init Blob context:', e.message);
+  }
+
   if (event.httpMethod === 'OPTIONS') {
     return jsonResponse(204, '');
   }

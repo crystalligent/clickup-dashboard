@@ -3,6 +3,8 @@
  * 
  * Queue item format:
  * { iid, title, web_url, description, state, milestone_id, milestone_name, labels, assignees, added_at }
+ * 
+ * IMPORTANT: Call initBlobContext(event) before any queue operations in Lambda-mode functions.
  */
 
 const fs = require('fs');
@@ -11,13 +13,33 @@ const path = require('path');
 const QUEUE_FILE = path.join('/tmp', 'sync-queue.json');
 const META_FILE = path.join('/tmp', 'sync-meta.json');
 
+// ─── Blob context initialization ───────────────────────────────────────────────
+
+/**
+ * Must be called once per function invocation (with the Lambda event)
+ * before any Blob operations. This configures the Blob environment for
+ * Lambda-compatible functions (exports.handler pattern).
+ */
+function initBlobContext(event) {
+  try {
+    const { connectLambda } = require('@netlify/blobs');
+    connectLambda(event);
+    return true;
+  } catch (e) {
+    console.error(`[queue] Failed to init Blob context: ${e.message}`);
+    return false;
+  }
+}
+
 // ─── Blob helpers ──────────────────────────────────────────────────────────────
 
 async function getBlobStore(name) {
   try {
     const { getStore } = require('@netlify/blobs');
-    return getStore(name);
+    const store = getStore(name);
+    return store;
   } catch (e) {
+    console.error(`[queue] Failed to get Blob store "${name}": ${e.message}`);
     return null;
   }
 }
@@ -30,7 +52,10 @@ async function getQueue() {
     try {
       const data = await store.get('pending', { type: 'json' });
       return data || [];
-    } catch (e) { return []; }
+    } catch (e) {
+      console.error(`[queue] Blob read error: ${e.message}`);
+      return [];
+    }
   }
   // Local fallback
   try {
@@ -42,8 +67,16 @@ async function getQueue() {
 async function saveQueue(queue) {
   const store = await getBlobStore('sync-queue');
   if (store) {
-    try { await store.setJSON('pending', queue); return; } catch (e) {}
+    try {
+      await store.setJSON('pending', queue);
+      console.log(`[queue] Saved ${queue.length} items to Blob store`);
+      return;
+    } catch (e) {
+      console.error(`[queue] Blob write error: ${e.message}`);
+    }
   }
+  // Fallback to /tmp (only works within same invocation)
+  console.warn(`[queue] Falling back to /tmp — data will NOT persist across invocations`);
   fs.writeFileSync(QUEUE_FILE, JSON.stringify(queue), 'utf8');
 }
 
@@ -98,7 +131,9 @@ async function getLastSyncTime() {
     try {
       const data = await store.get('last-sync', { type: 'json' });
       if (data?.timestamp) return new Date(data.timestamp);
-    } catch (e) {}
+    } catch (e) {
+      console.error(`[queue] Blob read last-sync error: ${e.message}`);
+    }
   }
   try {
     if (fs.existsSync(META_FILE)) {
@@ -113,9 +148,14 @@ async function saveLastSyncTime(timestamp) {
   const data = { timestamp: timestamp.toISOString() };
   const store = await getBlobStore('sync-meta');
   if (store) {
-    try { await store.setJSON('last-sync', data); } catch (e) {}
+    try {
+      await store.setJSON('last-sync', data);
+      return;
+    } catch (e) {
+      console.error(`[queue] Blob write last-sync error: ${e.message}`);
+    }
   }
   try { fs.writeFileSync(META_FILE, JSON.stringify(data), 'utf8'); } catch (e) {}
 }
 
-module.exports = { getQueue, saveQueue, enqueue, dequeue, getQueueSize, getLastSyncTime, saveLastSyncTime };
+module.exports = { initBlobContext, getQueue, saveQueue, enqueue, dequeue, getQueueSize, getLastSyncTime, saveLastSyncTime };

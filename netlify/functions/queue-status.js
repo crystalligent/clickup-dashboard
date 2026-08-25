@@ -5,7 +5,7 @@
  * DELETE /.netlify/functions/queue-status → clears the queue
  */
 
-const { getQueue, saveQueue, getQueueSize } = require('./utils/queue');
+const { initBlobContext, getQueue, saveQueue, getQueueSize } = require('./utils/queue');
 
 function jsonResponse(statusCode, body) {
   return {
@@ -16,6 +16,9 @@ function jsonResponse(statusCode, body) {
 }
 
 exports.handler = async (event) => {
+  // Initialize Blob context for Lambda-compatible functions
+  initBlobContext(event);
+
   // Password protection
   const requiredPassword = process.env.LOGS_PASSWORD;
   if (requiredPassword) {

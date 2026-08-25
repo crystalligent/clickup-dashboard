@@ -7,7 +7,7 @@
  * Schedule: Every 5 minutes
  */
 
-const { getQueue, saveQueue } = require('./utils/queue');
+const { initBlobContext, getQueue, saveQueue } = require('./utils/queue');
 const { logRun } = require('./utils/logger');
 
 const CLICKUP_API = 'https://api.clickup.com/api/v2';
@@ -191,6 +191,9 @@ async function processIssue(item) {
 
 exports.handler = async (event) => {
   console.log(`[process-queue] Scheduled run at ${new Date().toISOString()}`);
+
+  // Initialize Blob context for Lambda-compatible functions
+  initBlobContext(event);
 
   // Process directly from Blobs (no HTTP delegation — scheduled functions
   // cannot reliably call other functions via HTTP on Netlify)

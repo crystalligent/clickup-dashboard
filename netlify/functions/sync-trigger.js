@@ -9,7 +9,7 @@
  * Issues are queued and processed by process-queue (every 5 min).
  */
 
-const { enqueue, getQueueSize, getLastSyncTime, saveLastSyncTime } = require('./utils/queue');
+const { initBlobContext, enqueue, getQueue, getQueueSize, getLastSyncTime, saveLastSyncTime } = require('./utils/queue');
 
 function getEnv(key, fallback) {
   const val = process.env[key];
@@ -53,6 +53,9 @@ async function getIssuesByMilestone(milestoneName, since, { useCreatedAfter = fa
 }
 
 exports.handler = async (event) => {
+  // Initialize Blob context for Lambda-compatible functions
+  initBlobContext(event);
+
   // ─── Password protection ───
   const requiredPassword = process.env.LOGS_PASSWORD;
   if (requiredPassword) {
@@ -125,6 +128,24 @@ exports.handler = async (event) => {
     let queueSize = 0;
     try {
       queueSize = await enqueue(unique);
+      // Verify the write persisted by reading back
+      const verifyQueue = await getQueue();
+      console.log(`[sync-trigger] Write verification: enqueue returned ${queueSize}, getQueue returned ${verifyQueue.length} items`);
+      if (verifyQueue.length === 0 && unique.length > 0) {
+        console.error(`[sync-trigger] BLOB WRITE FAILED — data did not persist. Trying HTTP fallback.`);
+        // Fallback: POST to queue-status via HTTP
+        const siteUrl = process.env.URL || '';
+        if (siteUrl) {
+          const res = await fetch(`${siteUrl}/.netlify/functions/queue-status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Sync-Password': process.env.LOGS_PASSWORD || '' },
+            body: JSON.stringify({ issues: queueItems }),
+          });
+          const data = await res.json();
+          queueSize = data.queueSize || 0;
+          console.log(`[sync-trigger] HTTP fallback result: queueSize=${queueSize}`);
+        }
+      }
     } catch (e) {
       console.error(`[sync-trigger] Direct queue write failed: ${e.message}`);
       // Fallback: try HTTP POST to queue-status
