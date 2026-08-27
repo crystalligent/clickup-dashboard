@@ -1,25 +1,47 @@
 /**
  * Developer / QA sign-off checklist helper.
  *
- * Builds and maintains a "Sign-off" checklist on each ClickUp task, driven by:
+ * Builds and maintains a "Sign-off" checklist on each ClickUp task. Each row is a
+ * fixed role label ("Developer" / "QA"); the actual person is set as the checklist
+ * item's ASSIGNEE (avatar), not embedded in the text.
+ *
+ * Config (env):
  *   DEVELOPER_USERNAMES - comma-separated GitLab usernames treated as developers
  *   QA_USERNAMES        - comma-separated GitLab usernames treated as QAs
  *   NO_QA_LABELS        - comma-separated GitLab label titles for which QA is skipped
  *                         (e.g. "Data Correction"). Case-insensitive match.
  *   SIGNOFF_RESOLVE_STATUSES - comma-separated ClickUp statuses that resolve (check)
  *                         all rows. Defaults to "released to prod".
+ *   DEVELOPER_FREEZE_STATUS - at/after this status the Developer row's assignee is
+ *                         frozen (default "for release").
  *
  * Design rules (agreed with the team):
- *   - One developer and (usually) one QA per ticket. Latest assignee wins, so the
- *     row text is always overwritten to reflect the current assignee.
+ *   - One developer and (usually) one QA per ticket. Latest matching assignee wins.
+ *   - The row's person is the checklist item ASSIGNEE (a ClickUp member id resolved
+ *     from the GitLab username). If no ClickUp id is known, the row stays present
+ *     but unassigned (no avatar) so the pending role is still visible.
  *   - QA row is included for every ticket EXCEPT those carrying a no-QA label.
- *   - A required role with no matching assignee shows "(unassigned)" so it is
- *     visibly pending.
  *   - Assignees who are in neither role list are ignored.
+ *   - Once a ticket reaches "for release" (or later), the Developer row's assignee
+ *     is frozen (GitLab may reassign to a release handler/PM). QA keeps updating.
  *   - The checklist is reconciled (never duplicated) on repeated syncs.
  */
 
 const CHECKLIST_NAME = 'Sign-off';
+
+// GitLab username -> ClickUp member id. Sourced from the ClickUp list members.
+// Used to set the checklist item ASSIGNEE for the person in each role.
+const CLICKUP_MEMBER_IDS = {
+  // Developers
+  jgregorio: 89079122, // Jomar Gregorio
+  cdimalanta: 270739823, // Crystal Dimalanta
+  mtanqueco: 3827858, // Mikee Tanqueco
+  emonding: 100842272, // Emil John Monding
+  // QAs
+  agregorio: 89084186, // AC Gregorio
+  dcomia: 95085613, // Diana Comia
+  jcochangco: 95085608, // Jose Mari Cochangco
+};
 
 function parseCsvEnv(key, fallback = '') {
   const raw = process.env[key];
@@ -31,7 +53,6 @@ function parseCsvEnv(key, fallback = '') {
 
 /**
  * Normalize a GitLab assignees array into { username, name } objects.
- * Webhook payload and REST API both expose .username; .name may be absent.
  */
 function normalizeAssignees(gitlabAssignees) {
   if (!Array.isArray(gitlabAssignees)) return [];
@@ -60,7 +81,9 @@ function qaIsRequired(labels) {
 
 /**
  * Decide the rows the Sign-off checklist should contain for this ticket.
- * Returns an ordered array of { role: 'Developer'|'QA', text: 'Developer: X' }.
+ * Returns an ordered array of { role: 'Developer'|'QA', assigneeId: number|null }.
+ * assigneeId is the ClickUp member id for the person in that role, or null if the
+ * role is unassigned / the person has no known ClickUp id.
  */
 function buildSignoffRows(gitlabAssignees, labels) {
   const developers = parseCsvEnv('DEVELOPER_USERNAMES');
@@ -76,14 +99,13 @@ function buildSignoffRows(gitlabAssignees, labels) {
     return match;
   };
 
-  const rows = [];
+  const assigneeIdFor = (person) =>
+    person && CLICKUP_MEMBER_IDS[person.username] ? CLICKUP_MEMBER_IDS[person.username] : null;
 
-  const dev = findLatest(developers);
-  rows.push({ role: 'Developer', text: `Developer: ${dev ? dev.name : '(unassigned)'}` });
+  const rows = [{ role: 'Developer', assigneeId: assigneeIdFor(findLatest(developers)) }];
 
   if (qaIsRequired(labels)) {
-    const qa = findLatest(qas);
-    rows.push({ role: 'QA', text: `QA: ${qa ? qa.name : '(unassigned)'}` });
+    rows.push({ role: 'QA', assigneeId: assigneeIdFor(findLatest(qas)) });
   }
 
   return rows;
@@ -141,22 +163,18 @@ function developerIsFrozen(status) {
 /**
  * Reconcile the "Sign-off" checklist on a task.
  *
- * @param {function} clickupRequest - async (method, path, body?) => data, as defined per function.
+ * @param {function} clickupRequest - async (method, path, body?) => data.
  * @param {string}   taskId
  * @param {Array}    gitlabAssignees - raw GitLab assignees array
  * @param {Array}    labels          - raw GitLab labels (string[] or {title}[])
- * @param {string}   status          - the ClickUp status just applied (for resolve trigger)
+ * @param {string}   status          - the ClickUp status just applied
  *
- * Behavior:
- *   - Fetches the task to read existing checklists (dedup).
- *   - Creates the "Sign-off" checklist if missing.
- *   - Adds/updates rows so text matches the current developer/QA (latest wins).
- *   - Removes stale rows (e.g. a QA row that should no longer exist).
- *   - Resolves (checks) all rows when status is a resolve status; otherwise leaves
- *     resolved state untouched.
+ * Rows are fixed-label items ("Developer" / "QA") whose ASSIGNEE is set to the
+ * corresponding ClickUp member. Reconciled without duplicating; Developer assignee
+ * frozen at/after "for release"; all rows resolved when status is a resolve status.
  *
  * Never throws — failures are caught and returned as { ok:false, error } so the
- * core sync (name/status/assignee) is never broken by checklist issues.
+ * core sync is never broken by checklist issues.
  */
 async function syncSignoffChecklist(clickupRequest, taskId, gitlabAssignees, labels, status) {
   try {
@@ -174,69 +192,78 @@ async function syncSignoffChecklist(clickupRequest, taskId, gitlabAssignees, lab
       const created = await clickupRequest('POST', `/task/${taskId}/checklist`, {
         name: CHECKLIST_NAME,
       });
-      // Response wraps the checklist under `.checklist`.
       checklist = created.checklist || created;
       checklist.items = checklist.items || [];
     }
 
     const existingItems = checklist.items || [];
 
-    // Match existing items to desired rows by role prefix ("Developer:" / "QA:").
-    const rolePrefix = (name) => {
-      if (/^Developer:/i.test(name)) return 'Developer';
-      if (/^QA:/i.test(name)) return 'QA';
+    // Match existing items to a role by exact fixed label ("Developer" / "QA").
+    // Also tolerate the legacy "Developer: <name>" / "QA: <name>" text so old
+    // checklists get migrated to the new label-only + assignee form.
+    const roleOf = (name) => {
+      if (/^Developer\b/i.test(name)) return 'Developer';
+      if (/^QA\b/i.test(name)) return 'QA';
       return null;
     };
 
     const desiredRoles = new Set(desiredRows.map((r) => r.role));
+    const currentAssigneeId = (it) => (it.assignee && it.assignee.id) || null;
 
     // 1) Add or update a row per desired role.
     for (const row of desiredRows) {
-      const match = existingItems.find((it) => rolePrefix(it.name) === row.role);
+      const match = existingItems.find((it) => roleOf(it.name) === row.role);
 
-      // Freeze the Developer of record at/after "for release": if a Developer
-      // row already exists, preserve it verbatim (GitLab may have reassigned the
-      // ticket to a release handler / PM). QA rows always update normally.
-      // A missing Developer row is still created from current data so the row
-      // isn't absent for tickets first seen at/after release.
+      // Freeze the Developer assignee at/after "for release": preserve the
+      // existing item as-is (GitLab may have reassigned to a release handler/PM).
+      // A missing Developer row is still created from current data.
       if (devFrozen && row.role === 'Developer' && match) {
+        // Still normalize the label to the fixed form if it's a legacy row.
+        if (match.name !== row.role) {
+          await clickupRequest('PUT', `/checklist/${checklist.id}/checklist_item/${match.id}`, {
+            name: row.role,
+          });
+        }
         continue;
       }
 
       if (!match) {
-        // Create the item.
-        await clickupRequest('POST', `/checklist/${checklist.id}/checklist_item`, {
-          name: row.text,
-        });
+        // Create the item with the fixed label and (optional) assignee.
+        const body = { name: row.role };
+        if (row.assigneeId) body.assignee = row.assigneeId;
+        await clickupRequest('POST', `/checklist/${checklist.id}/checklist_item`, body);
       } else {
-        // Update text if the assignee changed.
-        // NOTE: edit/delete of a checklist item require the checklist id in the
-        // path: /checklist/{checklist_id}/checklist_item/{item_id}
-        if (match.name !== row.text) {
-          await clickupRequest('PUT', `/checklist/${checklist.id}/checklist_item/${match.id}`, {
-            name: row.text,
-          });
+        // Update label to the fixed form and/or assignee if changed.
+        const updates = {};
+        if (match.name !== row.role) updates.name = row.role;
+        if (row.assigneeId && currentAssigneeId(match) !== row.assigneeId) {
+          updates.assignee = row.assigneeId;
+        }
+        if (Object.keys(updates).length > 0) {
+          await clickupRequest(
+            'PUT',
+            `/checklist/${checklist.id}/checklist_item/${match.id}`,
+            updates
+          );
         }
       }
     }
 
     // 2) Remove stale rows whose role is no longer desired (e.g. QA dropped).
     for (const it of existingItems) {
-      const role = rolePrefix(it.name);
+      const role = roleOf(it.name);
       if (role && !desiredRoles.has(role)) {
         await clickupRequest('DELETE', `/checklist/${checklist.id}/checklist_item/${it.id}`);
       }
     }
 
-    // 3) Resolve (or unresolve) rows based on status.
-    //    Re-fetch item ids: for newly created items we don't have ids locally,
-    //    so read the checklist fresh from the task.
+    // 3) Resolve (check) rows based on status. Re-read to get current item ids.
     if (resolveAll) {
       const refreshed = await clickupRequest('GET', `/task/${taskId}`);
       const cl = (refreshed.checklists || []).find((c) => c.name === CHECKLIST_NAME);
       const items = (cl && cl.items) || [];
       for (const it of items) {
-        if (rolePrefix(it.name) && !it.resolved) {
+        if (roleOf(it.name) && !it.resolved) {
           await clickupRequest('PUT', `/checklist/${cl.id}/checklist_item/${it.id}`, {
             resolved: true,
           });
@@ -244,7 +271,11 @@ async function syncSignoffChecklist(clickupRequest, taskId, gitlabAssignees, lab
       }
     }
 
-    return { ok: true, rows: desiredRows.map((r) => r.text), resolved: resolveAll };
+    return {
+      ok: true,
+      rows: desiredRows.map((r) => `${r.role}${r.assigneeId ? ` (assignee ${r.assigneeId})` : ' (unassigned)'}`),
+      resolved: resolveAll,
+    };
   } catch (err) {
     console.error(`[signoff] Failed to sync checklist on task ${taskId}:`, err.message);
     return { ok: false, error: err.message };
@@ -253,6 +284,7 @@ async function syncSignoffChecklist(clickupRequest, taskId, gitlabAssignees, lab
 
 module.exports = {
   CHECKLIST_NAME,
+  CLICKUP_MEMBER_IDS,
   buildSignoffRows,
   qaIsRequired,
   shouldResolveSignoff,
