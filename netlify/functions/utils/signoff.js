@@ -210,8 +210,12 @@ async function syncSignoffChecklist(clickupRequest, taskId, gitlabAssignees, lab
         });
       } else {
         // Update text if the assignee changed.
+        // NOTE: edit/delete of a checklist item require the checklist id in the
+        // path: /checklist/{checklist_id}/checklist_item/{item_id}
         if (match.name !== row.text) {
-          await clickupRequest('PUT', `/checklist_item/${match.id}`, { name: row.text });
+          await clickupRequest('PUT', `/checklist/${checklist.id}/checklist_item/${match.id}`, {
+            name: row.text,
+          });
         }
       }
     }
@@ -220,7 +224,7 @@ async function syncSignoffChecklist(clickupRequest, taskId, gitlabAssignees, lab
     for (const it of existingItems) {
       const role = rolePrefix(it.name);
       if (role && !desiredRoles.has(role)) {
-        await clickupRequest('DELETE', `/checklist_item/${it.id}`);
+        await clickupRequest('DELETE', `/checklist/${checklist.id}/checklist_item/${it.id}`);
       }
     }
 
@@ -233,7 +237,9 @@ async function syncSignoffChecklist(clickupRequest, taskId, gitlabAssignees, lab
       const items = (cl && cl.items) || [];
       for (const it of items) {
         if (rolePrefix(it.name) && !it.resolved) {
-          await clickupRequest('PUT', `/checklist_item/${it.id}`, { resolved: true });
+          await clickupRequest('PUT', `/checklist/${cl.id}/checklist_item/${it.id}`, {
+            resolved: true,
+          });
         }
       }
     }
