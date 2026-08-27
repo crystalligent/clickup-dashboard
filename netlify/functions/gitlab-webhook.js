@@ -17,6 +17,7 @@
  */
 
 const { logRun } = require('./utils/logger');
+const { syncSignoffChecklist } = require('./utils/signoff');
 
 const CLICKUP_API = 'https://api.clickup.com/api/v2';
 
@@ -264,6 +265,9 @@ exports.handler = async (event) => {
       } catch (e) { /* tag may already exist */ }
     }
 
+    // Developer/QA sign-off checklist (never blocks core sync)
+    await syncSignoffChecklist(clickupRequest, taskId, assignees, labels, updates.status || existingTask.status?.status);
+
     const statusNote = updates.status || 'name update only';
     await logRun({
       source: 'webhook', action: 'updated', status: 'success',
@@ -292,6 +296,9 @@ exports.handler = async (event) => {
 
   try {
     const newTask = await createClickUpTask(issue, status, assigneeIds, expectedTags);
+
+    // Developer/QA sign-off checklist (never blocks core sync)
+    await syncSignoffChecklist(clickupRequest, newTask.id, assignees, labels, status);
 
     await logRun({
       source: 'webhook', action: 'created', status: 'success',

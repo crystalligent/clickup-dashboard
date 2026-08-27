@@ -9,6 +9,7 @@
 
 const { initBlobContext, getQueue, saveQueue } = require('./utils/queue');
 const { logRun } = require('./utils/logger');
+const { syncSignoffChecklist } = require('./utils/signoff');
 
 const CLICKUP_API = 'https://api.clickup.com/api/v2';
 const BATCH_SIZE = 5;
@@ -146,6 +147,9 @@ async function processIssue(item) {
       try { await clickupRequest('POST', `/task/${taskId}/tag/${encodeURIComponent(tag)}`, {}); } catch (e) {}
     }
 
+    // Developer/QA sign-off checklist (never blocks core sync)
+    await syncSignoffChecklist(clickupRequest, taskId, item.assignees || [], item.labels || [], updates.status || existing.status);
+
     await logRun({
       source: 'scheduled', action: 'updated', status: 'success',
       duration: Date.now() - startTime,
@@ -175,6 +179,9 @@ async function processIssue(item) {
     assignees: assigneeIds,
     tags: expectedTags,
   });
+
+  // Developer/QA sign-off checklist (never blocks core sync)
+  await syncSignoffChecklist(clickupRequest, newTask.id, item.assignees || [], item.labels || [], status);
 
   await logRun({
     source: 'scheduled', action: 'created', status: 'success',
