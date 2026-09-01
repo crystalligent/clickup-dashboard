@@ -381,11 +381,19 @@ function renderPersonCards() {
 // --- Table ---
 
 function populateFilters() {
+    // Person dropdown
     const sel = document.getElementById('filterPerson');
     const names = [...new Set(tasks.map(t => personName(t.__role.assignee)))].sort();
     const cur = sel.value;
     sel.innerHTML = `<option value="">All ${ROLE}s</option>` + names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
     if (names.includes(cur)) sel.value = cur;
+
+    // Status dropdown
+    const statusSel = document.getElementById('filterStatus');
+    const statuses = [...new Set(tasks.map(t => t.status && t.status.status).filter(Boolean))].sort();
+    const curStatus = statusSel.value;
+    statusSel.innerHTML = `<option value="">All Statuses</option>` + statuses.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    if (statuses.includes(curStatus)) statusSel.value = curStatus;
 }
 
 function getFilteredTasks() {
