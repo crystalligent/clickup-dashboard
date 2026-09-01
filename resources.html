@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resources — BXI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <div class="header-left">
+                <h1>Resources</h1>
+                <span class="subtitle">Developer vs QA capacity &amp; bottlenecks</span>
+            </div>
+            <div class="header-right">
+                <a href="index.html" class="btn">← Main Dashboard</a>
+                <a href="dev-signoff.html" class="btn">👨‍💻 Developer Sign-off</a>
+                <a href="qa-signoff.html" class="btn">🧪 QA Sign-off</a>
+                <a href="logs.html" class="btn">📋 Sync Logs</a>
+            </div>
+        </header>
+
+        <section class="section">
+            <div class="balance-title-row">
+                <h2 class="section-title" style="margin-bottom:0;">Resource Balance — Developer vs QA</h2>
+                <div class="balance-month">
+                    <button class="btn btn-sm" id="balPrevMonth" title="Previous month">‹</button>
+                    <span class="balance-month-label" id="balMonthLabel">—</span>
+                    <button class="btn btn-sm" id="balNextMonth" title="Next month">›</button>
+                </div>
+            </div>
+            <div class="balance-card" id="balanceCard">
+                <div class="balance-loading" id="balanceLoading">Analyzing wait time…</div>
+                <div class="balance-body" id="balanceBody" style="display:none;">
+                    <div class="balance-verdict" id="balanceVerdict"></div>
+
+                    <!-- Primary: aging (days waiting in status) -->
+                    <div class="balance-cols">
+                        <div class="balance-col balance-col-dev">
+                            <div class="balance-role">👨‍💻 Developers</div>
+                            <div class="balance-load" id="balDevWait">0</div>
+                            <div class="balance-sub">avg days in dev status</div>
+                            <div class="balance-meta" id="balDevMeta"></div>
+                        </div>
+                        <div class="balance-scale">
+                            <div class="balance-bar">
+                                <div class="balance-bar-dev" id="balBarDev"></div>
+                                <div class="balance-bar-qa" id="balBarQa"></div>
+                            </div>
+                            <div class="balance-ratio" id="balRatio"></div>
+                        </div>
+                        <div class="balance-col balance-col-qa">
+                            <div class="balance-role">🧪 QA</div>
+                            <div class="balance-load" id="balQaWait">0</div>
+                            <div class="balance-sub">avg days in QA status</div>
+                            <div class="balance-meta" id="balQaMeta"></div>
+                        </div>
+                    </div>
+
+                    <!-- Secondary stats -->
+                    <div class="balance-stats-row">
+                        <div class="balance-stat">
+                            <div class="balance-stat-value" id="balQaStalled">0</div>
+                            <div class="balance-stat-label">QA tickets stalled &gt; 7 days</div>
+                        </div>
+                        <div class="balance-stat">
+                            <div class="balance-stat-value" id="balQaQueue">0</div>
+                            <div class="balance-stat-label">In QA queue</div>
+                        </div>
+                        <div class="balance-stat">
+                            <div class="balance-stat-value" id="balDevQueue">0</div>
+                            <div class="balance-stat-label">In Dev queue</div>
+                        </div>
+                        <div class="balance-stat">
+                            <div class="balance-stat-value" id="balQaMedian">0</div>
+                            <div class="balance-stat-label">Median days in QA</div>
+                        </div>
+                    </div>
+
+                    <div class="balance-note" id="balanceNote"></div>
+                    <div class="balance-disclaimer" id="balanceDisclaimer"></div>
+                </div>
+                <div class="balance-error" id="balanceError" style="display:none;"></div>
+            </div>
+        </section>
+    </div>
+
+    <script src="resources.js"></script>
+</body>
+</html>
