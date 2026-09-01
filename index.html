@@ -56,6 +56,40 @@
         <!-- Dashboard Content -->
         <div class="dashboard" id="dashboard" style="display:none;">
 
+            <!-- Resource Balance (Developer vs QA sign-off load) -->
+            <section class="section">
+                <h2 class="section-title">Resource Balance — Developer vs QA</h2>
+                <div class="balance-card" id="balanceCard">
+                    <div class="balance-loading" id="balanceLoading">Analyzing sign-off workload…</div>
+                    <div class="balance-body" id="balanceBody" style="display:none;">
+                        <div class="balance-verdict" id="balanceVerdict"></div>
+                        <div class="balance-cols">
+                            <div class="balance-col balance-col-dev">
+                                <div class="balance-role">👨‍💻 Developers</div>
+                                <div class="balance-load" id="balDevLoad">0</div>
+                                <div class="balance-sub">active tickets / dev</div>
+                                <div class="balance-meta" id="balDevMeta"></div>
+                            </div>
+                            <div class="balance-scale">
+                                <div class="balance-bar">
+                                    <div class="balance-bar-dev" id="balBarDev"></div>
+                                    <div class="balance-bar-qa" id="balBarQa"></div>
+                                </div>
+                                <div class="balance-ratio" id="balRatio"></div>
+                            </div>
+                            <div class="balance-col balance-col-qa">
+                                <div class="balance-role">🧪 QA</div>
+                                <div class="balance-load" id="balQaLoad">0</div>
+                                <div class="balance-sub">active tickets / QA</div>
+                                <div class="balance-meta" id="balQaMeta"></div>
+                            </div>
+                        </div>
+                        <div class="balance-note" id="balanceNote"></div>
+                    </div>
+                    <div class="balance-error" id="balanceError" style="display:none;"></div>
+                </div>
+            </section>
+
             <!-- Pipeline Overview -->
             <section class="section">
                 <h2 class="section-title">Pipeline Overview</h2>
@@ -202,5 +236,148 @@
     </div>
 
     <script src="app.js"></script>
+    <script>
+    // ── Resource Balance card ──────────────────────────────────────────────
+    // Self-contained: fetches from the Sign-off list independently of app.js,
+    // reads each ticket's "Sign-off" checklist, and compares Developer vs QA
+    // load per person on ACTIVE (non-done) tickets.
+    (function () {
+        const SIGNOFF_LIST_ID = localStorage.getItem('signoff_list_id') || '901616211048';
+        const DONE_STATUSES = ['released to prod', 'for release', 'resolved - no code changes', 'closed'];
+        const CONCURRENCY = 6;
+
+        function proxyFetch(apiPath) {
+            if (window.location.protocol === 'file:') {
+                return Promise.reject(new Error('Must be hosted on Netlify.'));
+            }
+            return fetch('/.netlify/functions/clickup-proxy?path=' + encodeURIComponent(apiPath));
+        }
+
+        function roleItem(task, re) {
+            const cl = (task.checklists || []).find(c => c.name === 'Sign-off');
+            if (!cl) return null;
+            const it = (cl.items || []).find(i => re.test(i.name || ''));
+            if (!it) return null;
+            return { assignee: it.assignee || null, resolved: !!it.resolved };
+        }
+
+        async function mapPool(items, worker, concurrency) {
+            const out = new Array(items.length);
+            let idx = 0;
+            async function run() {
+                while (idx < items.length) {
+                    const my = idx++;
+                    try { out[my] = await worker(items[my]); } catch (e) { out[my] = null; }
+                }
+            }
+            const runners = [];
+            for (let i = 0; i < Math.min(concurrency, items.length); i++) runners.push(run());
+            await Promise.all(runners);
+            return out;
+        }
+
+        function show(id, on) { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; }
+        function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
+
+        async function loadBalance() {
+            try {
+                // Page through the sign-off list.
+                let list = [], page = 0, more = true;
+                while (more) {
+                    const res = await proxyFetch(`/api/v2/list/${SIGNOFF_LIST_ID}/task?page=${page}&subtasks=true&include_closed=true`);
+                    if (!res.ok) throw new Error('API error ' + res.status);
+                    const data = await res.json();
+                    list = list.concat(data.tasks || []);
+                    more = !data.last_page;
+                    page++;
+                    if (page > 30) break;
+                }
+                // Fan out for checklists.
+                const details = await mapPool(list, async (t) => {
+                    const r = await proxyFetch(`/api/v2/task/${t.id}`);
+                    return r.ok ? r.json() : null;
+                }, CONCURRENCY);
+
+                const devRe = /^Developer\b/i, qaRe = /^QA\b/i;
+                let devActive = 0, qaActive = 0;
+                const devPeople = new Set(), qaPeople = new Set();
+                let devSigned = 0, qaSigned = 0;
+
+                details.forEach(t => {
+                    if (!t) return;
+                    const status = (t.status && t.status.status || '').toLowerCase();
+                    const done = DONE_STATUSES.includes(status);
+                    const d = roleItem(t, devRe);
+                    const q = roleItem(t, qaRe);
+                    if (d && !done) { devActive++; if (d.assignee) devPeople.add(d.assignee.username); }
+                    if (q && !done) { qaActive++; if (q.assignee) qaPeople.add(q.assignee.username); }
+                    if (d && d.resolved) devSigned++;
+                    if (q && q.resolved) qaSigned++;
+                });
+
+                const devN = devPeople.size || 0;
+                const qaN = qaPeople.size || 0;
+                const devLoad = devN ? devActive / devN : 0;
+                const qaLoad = qaN ? qaActive / qaN : 0;
+
+                setText('balDevLoad', devLoad ? devLoad.toFixed(1) : '—');
+                setText('balQaLoad', qaLoad ? qaLoad.toFixed(1) : '—');
+                setText('balDevMeta', `${devActive} active · ${devN} developer${devN === 1 ? '' : 's'}`);
+                setText('balQaMeta', `${qaActive} active · ${qaN} QA${qaN === 1 ? '' : 's'}`);
+
+                // Bar split by relative per-person load.
+                const totalLoad = devLoad + qaLoad;
+                const devPct = totalLoad ? (devLoad / totalLoad) * 100 : 50;
+                document.getElementById('balBarDev').style.width = devPct + '%';
+                document.getElementById('balBarQa').style.width = (100 - devPct) + '%';
+
+                // Verdict: compare per-person load. Within 20% => balanced.
+                const verdictEl = document.getElementById('balanceVerdict');
+                const noteEl = document.getElementById('balanceNote');
+                let ratioText = '', verdictHtml = '', cls = '', note = '';
+                if (!devLoad || !qaLoad) {
+                    cls = 'verdict-balanced';
+                    verdictHtml = 'Not enough data <span class="verdict-pill">n/a</span>';
+                    note = 'Need at least one active Developer and one active QA sign-off to compare.';
+                    ratioText = '';
+                } else {
+                    const ratio = devLoad / qaLoad;
+                    ratioText = `Dev carries ${ratio >= 1 ? ratio.toFixed(2) + '×' : (1 / ratio).toFixed(2) + '× less than'} QA per person`;
+                    const diff = Math.abs(devLoad - qaLoad) / Math.max(devLoad, qaLoad);
+                    if (diff <= 0.20) {
+                        cls = 'verdict-balanced';
+                        verdictHtml = 'Balanced <span class="verdict-pill">healthy</span>';
+                        note = `Developer and QA per-person load are within 20% of each other (${devLoad.toFixed(1)} vs ${qaLoad.toFixed(1)} active tickets/person). No resourcing action needed right now.`;
+                    } else if (qaLoad > devLoad) {
+                        cls = 'verdict-qa';
+                        verdictHtml = 'QA is the bottleneck <span class="verdict-pill">add QA</span>';
+                        note = `Each QA is carrying ${qaLoad.toFixed(1)} active tickets vs ${devLoad.toFixed(1)} per developer — QA is ${((qaLoad / devLoad - 1) * 100).toFixed(0)}% more loaded. Consider adding QA capacity or rebalancing.`;
+                    } else {
+                        cls = 'verdict-dev';
+                        verdictHtml = 'Development is the bottleneck <span class="verdict-pill">add devs</span>';
+                        note = `Each developer is carrying ${devLoad.toFixed(1)} active tickets vs ${qaLoad.toFixed(1)} per QA — Dev is ${((devLoad / qaLoad - 1) * 100).toFixed(0)}% more loaded. Consider adding developer capacity or rebalancing.`;
+                    }
+                }
+                verdictEl.className = 'balance-verdict ' + cls;
+                verdictEl.innerHTML = verdictHtml;
+                document.getElementById('balRatio').textContent = ratioText;
+                noteEl.textContent = note;
+
+                show('balanceLoading', false);
+                show('balanceBody', true);
+            } catch (err) {
+                show('balanceLoading', false);
+                const e = document.getElementById('balanceError');
+                e.textContent = 'Could not load resource balance: ' + err.message;
+                e.style.display = 'block';
+            }
+        }
+
+        // Kick off after initial paint; independent of the main dashboard load.
+        if (window.location.protocol !== 'file:') {
+            window.addEventListener('load', () => setTimeout(loadBalance, 400));
+        }
+    })();
+    </script>
 </body>
 </html>

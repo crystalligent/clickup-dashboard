@@ -563,3 +563,84 @@ tr:hover td {
     background: #4da6ff;
     color: #fff;
 }
+
+
+/* Resource Balance card (Developer vs QA sign-off load) */
+.balance-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+}
+
+.balance-loading, .balance-error {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    padding: 8px 0;
+}
+.balance-error { color: var(--danger); }
+
+.balance-verdict {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.balance-verdict .verdict-pill {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 3px 10px;
+    border-radius: 12px;
+}
+.verdict-balanced { color: var(--success); }
+.verdict-balanced .verdict-pill { background: var(--success-soft); color: var(--success); }
+.verdict-dev { color: var(--primary); }
+.verdict-dev .verdict-pill { background: var(--primary-soft); color: var(--primary); }
+.verdict-qa { color: var(--info); }
+.verdict-qa .verdict-pill { background: var(--info-soft); color: var(--info); }
+
+.balance-cols {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    align-items: center;
+    gap: 20px;
+}
+
+.balance-col { text-align: center; }
+.balance-role { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; }
+.balance-load { font-size: 2.2rem; font-weight: 800; line-height: 1; }
+.balance-col-dev .balance-load { color: var(--primary); }
+.balance-col-qa .balance-load { color: var(--info); }
+.balance-sub { font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 4px; }
+.balance-meta { font-size: 0.72rem; color: var(--text-muted); margin-top: 8px; }
+
+.balance-scale { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.balance-bar {
+    display: flex;
+    width: 100%;
+    height: 14px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface-3);
+}
+.balance-bar-dev { height: 100%; background: var(--primary); transition: width 0.4s; }
+.balance-bar-qa { height: 100%; background: var(--info); transition: width 0.4s; }
+.balance-ratio { font-size: 0.72rem; color: var(--text-muted); }
+
+.balance-note {
+    margin-top: 18px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+}
+
+@media (max-width: 768px) {
+    .balance-cols { grid-template-columns: 1fr; gap: 14px; }
+    .balance-scale { order: 3; }
+}
