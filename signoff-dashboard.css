@@ -1,0 +1,206 @@
+/* Sign-off dashboards (Developer / QA) — shared page-specific styles.
+   Reuses tokens and most classes from styles.css. */
+
+/* Date range panel (mirrors developers.css) */
+.date-range-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+}
+
+.date-range-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.preset-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface-2);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.15s;
+}
+
+.preset-btn:hover { background: var(--surface-3); color: var(--text); }
+.preset-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+.date-range-inputs {
+    display: flex;
+    align-items: flex-end;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.date-range-inputs .field { display: flex; flex-direction: column; gap: 4px; }
+.date-range-inputs label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+
+.date-range-inputs input[type="date"] {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    color: var(--text);
+    font-size: 0.85rem;
+    color-scheme: dark;
+}
+
+.date-range-note {
+    margin-top: 12px;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+}
+
+.date-range-info {
+    margin-top: 12px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+/* Exclude chips */
+.exclude-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.exclude-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+.exclude-checkboxes { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.exclude-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface-2);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.75rem;
+    user-select: none;
+}
+
+.exclude-chip .chip-x { opacity: 0.5; font-size: 0.7rem; }
+.exclude-chip.excluded { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); text-decoration: line-through; }
+
+/* Person cards */
+.person-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+.person-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+}
+
+.person-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.person-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.person-name { font-size: 0.95rem; font-weight: 600; }
+.person-summary { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+.person-stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.person-stat-box {
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    padding: 10px 8px;
+    text-align: center;
+}
+
+.person-stat-value { font-size: 1.3rem; font-weight: 700; }
+.person-stat-label { font-size: 0.62rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 2px; }
+
+/* Hand-rolled multi-segment progress bar */
+.person-progress-bar {
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--surface-3);
+    margin-bottom: 8px;
+}
+
+.person-progress-segment { height: 100%; }
+
+.person-progress-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.person-legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.68rem; color: var(--text-muted); }
+.person-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+.person-tasks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.person-task-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.person-task-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.person-task-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); text-decoration: none; }
+.person-task-name:hover { color: var(--primary); }
+.person-task-status { font-size: 0.65rem; color: var(--text-muted); white-space: nowrap; }
+
+.btn-export {
+    background: var(--success-soft);
+    border: 1px solid var(--success);
+    color: var(--success);
+}
+.btn-export:hover { background: var(--success); color: #fff; }
+
+.signed-badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.signed-badge.yes { background: var(--success-soft); color: var(--success); }
+.signed-badge.no { background: var(--warning-soft); color: var(--warning); }
+
+@media (max-width: 768px) {
+    .person-grid { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Developer Sign-off — BXI</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="signoff-dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <div class="header-left">
+                <h1>Developer Sign-off</h1>
+                <span class="subtitle">Tickets by assigned Developer</span>
+            </div>
+            <div class="header-right">
+                <a href="index.html" class="btn">← Main Dashboard</a>
+                <a href="qa-signoff.html" class="btn">🧪 QA Sign-off</a>
+                <a href="logs.html" class="btn">📋 Sync Logs</a>
+                <button class="btn btn-icon" onclick="toggleConfig()" title="Settings">⚙️</button>
+            </div>
+        </header>
+
+        <div class="config-panel" id="configPanel" style="display:none;">
+            <div class="config-header">
+                <h2>⚙️ Configuration</h2>
+                <button class="btn btn-sm" onclick="toggleConfig()">×</button>
+            </div>
+            <p class="config-note">API key is stored securely in Netlify (CLICKUP_KEY). This dashboard reads the "Sign-off" checklist on each ticket.</p>
+            <div class="config-fields">
+                <div class="field">
+                    <label for="listId">List ID</label>
+                    <input type="text" id="listId" placeholder="901616211048" />
+                </div>
+                <button class="btn btn-primary" onclick="saveConfig()">Save</button>
+            </div>
+        </div>
+
+        <section class="section">
+            <div class="date-range-panel">
+                <div class="date-range-presets">
+                    <button class="preset-btn active" onclick="setPreset('this-month', this)">This Month</button>
+                    <button class="preset-btn" onclick="setPreset('last-week', this)">Last Week</button>
+                    <button class="preset-btn" onclick="setPreset('this-week', this)">This Week</button>
+                    <button class="preset-btn" onclick="setPreset('last-month', this)">Last Month</button>
+                    <button class="preset-btn" onclick="setPreset('last-7', this)">Last 7 Days</button>
+                    <button class="preset-btn" onclick="setPreset('last-14', this)">Last 14 Days</button>
+                    <button class="preset-btn" onclick="setPreset('last-30', this)">Last 30 Days</button>
+                    <button class="preset-btn" onclick="setPreset('custom', this)">Custom</button>
+                </div>
+                <div class="date-range-inputs">
+                    <div class="field">
+                        <label for="dateFrom">From</label>
+                        <input type="date" id="dateFrom" onchange="onDateChange()" />
+                    </div>
+                    <div class="field">
+                        <label for="dateTo">To</label>
+                        <input type="date" id="dateTo" onchange="onDateChange()" />
+                    </div>
+                    <button class="btn btn-primary" onclick="fetchData()">Load Data</button>
+                </div>
+                <p class="date-range-note">
+                    Attributes each ticket to the person assigned in the <strong>Developer</strong> row of its Sign-off checklist.
+                    Filters by last-updated date. Tickets without a Developer sign-off row are excluded.
+                </p>
+                <div class="exclude-filter" id="excludeFilter" style="margin-top:14px;">
+                    <label class="exclude-label">Exclude:</label>
+                    <div class="exclude-checkboxes" id="excludeCheckboxes"></div>
+                </div>
+                <div class="date-range-info" id="dateRangeInfo"></div>
+            </div>
+        </section>
+
+        <div class="loading" id="loading" style="display:none;">
+            <div class="spinner"></div>
+            <p>Loading developer sign-off data...</p>
+            <p class="loading-progress" id="loadingProgress"></p>
+        </div>
+
+        <div class="error" id="error" style="display:none;"></div>
+
+        <div class="dashboard" id="dashboard" style="display:none;">
+            <section class="section">
+                <div class="kpi-grid">
+                    <div class="kpi-card kpi-active">
+                        <div class="kpi-icon">👨‍💻</div>
+                        <div class="kpi-content"><div class="kpi-value" id="kpiTotal">0</div><div class="kpi-label">Dev Tickets</div></div>
+                    </div>
+                    <div class="kpi-card kpi-done">
+                        <div class="kpi-icon">✅</div>
+                        <div class="kpi-content"><div class="kpi-value" id="kpiSigned">0</div><div class="kpi-label">Signed Off</div></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon">🏁</div>
+                        <div class="kpi-content"><div class="kpi-value" id="kpiDone">0</div><div class="kpi-label">Done Phase</div></div>
+                    </div>
+                    <div class="kpi-card kpi-blocked">
+                        <div class="kpi-icon">⚠️</div>
+                        <div class="kpi-content"><div class="kpi-value" id="kpiUnassigned">0</div><div class="kpi-label">Unassigned</div></div>
+                    </div>
+                    <div class="kpi-card kpi-rate">
+                        <div class="kpi-icon">📈</div>
+                        <div class="kpi-content"><div class="kpi-value" id="kpiRate">0%</div><div class="kpi-label">Sign-off Rate</div></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon">👥</div>
+                        <div class="kpi-content"><div class="kpi-value" id="kpiPeople">0</div><div class="kpi-label">Developers</div></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <div class="charts-grid-2">
+                    <div class="chart-card"><h3>Tickets by Developer</h3><canvas id="personChart"></canvas></div>
+                    <div class="chart-card"><h3>Status Distribution</h3><canvas id="statusChart"></canvas></div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Developer Breakdown</h2>
+                <div class="person-grid" id="personGrid"></div>
+            </section>
+
+            <section class="section">
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3>Developer Ticket List</h3>
+                        <button class="btn btn-export" onclick="exportToCSV()">📥 Export CSV</button>
+                    </div>
+                    <div class="table-filters">
+                        <select id="filterPerson" onchange="renderTable()"><option value="">All Developers</option></select>
+                        <select id="filterStatus" onchange="renderTable()"><option value="">All Statuses</option></select>
+                        <input type="text" id="filterSearch" placeholder="Search..." oninput="renderTable()" />
+                    </div>
+                    <div class="table-stats" id="tableStats"></div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="sortable" onclick="sortBy('name')">Task ↕</th>
+                                    <th>GitLab</th>
+                                    <th class="sortable" onclick="sortBy('status')">Status ↕</th>
+                                    <th class="sortable" onclick="sortBy('person')">Developer ↕</th>
+                                    <th>Sign-off</th>
+                                    <th class="sortable" onclick="sortBy('updated')">Updated ↕</th>
+                                    <th class="sortable" onclick="sortBy('created')">Created ↕</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="table-pagination" id="tablePagination"></div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>window.SIGNOFF_ROLE = 'Developer';</script>
+    <script src="signoff-dashboard.js"></script>
+</body>
+</html>
