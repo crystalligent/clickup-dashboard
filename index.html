@@ -56,18 +56,27 @@
         <!-- Dashboard Content -->
         <div class="dashboard" id="dashboard" style="display:none;">
 
-            <!-- Resource Balance (Developer vs QA sign-off load) -->
+            <!-- Resource Balance (Developer vs QA sign-off — wait-time bottleneck) -->
             <section class="section">
-                <h2 class="section-title">Resource Balance — Developer vs QA</h2>
+                <div class="balance-title-row">
+                    <h2 class="section-title" style="margin-bottom:0;">Resource Balance — Developer vs QA</h2>
+                    <div class="balance-month">
+                        <button class="btn btn-sm" id="balPrevMonth" title="Previous month">‹</button>
+                        <span class="balance-month-label" id="balMonthLabel">—</span>
+                        <button class="btn btn-sm" id="balNextMonth" title="Next month">›</button>
+                    </div>
+                </div>
                 <div class="balance-card" id="balanceCard">
-                    <div class="balance-loading" id="balanceLoading">Analyzing sign-off workload…</div>
+                    <div class="balance-loading" id="balanceLoading">Analyzing wait time…</div>
                     <div class="balance-body" id="balanceBody" style="display:none;">
                         <div class="balance-verdict" id="balanceVerdict"></div>
+
+                        <!-- Primary: aging (days waiting in status) -->
                         <div class="balance-cols">
                             <div class="balance-col balance-col-dev">
                                 <div class="balance-role">👨‍💻 Developers</div>
-                                <div class="balance-load" id="balDevLoad">0</div>
-                                <div class="balance-sub">active tickets / dev</div>
+                                <div class="balance-load" id="balDevWait">0</div>
+                                <div class="balance-sub">avg days in dev status</div>
                                 <div class="balance-meta" id="balDevMeta"></div>
                             </div>
                             <div class="balance-scale">
@@ -79,12 +88,34 @@
                             </div>
                             <div class="balance-col balance-col-qa">
                                 <div class="balance-role">🧪 QA</div>
-                                <div class="balance-load" id="balQaLoad">0</div>
-                                <div class="balance-sub">active tickets / QA</div>
+                                <div class="balance-load" id="balQaWait">0</div>
+                                <div class="balance-sub">avg days in QA status</div>
                                 <div class="balance-meta" id="balQaMeta"></div>
                             </div>
                         </div>
+
+                        <!-- Secondary stats -->
+                        <div class="balance-stats-row">
+                            <div class="balance-stat">
+                                <div class="balance-stat-value" id="balQaStalled">0</div>
+                                <div class="balance-stat-label">QA tickets stalled &gt; 7 days</div>
+                            </div>
+                            <div class="balance-stat">
+                                <div class="balance-stat-value" id="balQaQueue">0</div>
+                                <div class="balance-stat-label">In QA queue</div>
+                            </div>
+                            <div class="balance-stat">
+                                <div class="balance-stat-value" id="balDevQueue">0</div>
+                                <div class="balance-stat-label">In Dev queue</div>
+                            </div>
+                            <div class="balance-stat">
+                                <div class="balance-stat-value" id="balQaMedian">0</div>
+                                <div class="balance-stat-label">Median days in QA</div>
+                            </div>
+                        </div>
+
                         <div class="balance-note" id="balanceNote"></div>
+                        <div class="balance-disclaimer" id="balanceDisclaimer"></div>
                     </div>
                     <div class="balance-error" id="balanceError" style="display:none;"></div>
                 </div>
@@ -237,54 +268,63 @@
 
     <script src="app.js"></script>
     <script>
-    // ── Resource Balance card ──────────────────────────────────────────────
-    // Self-contained: fetches from the Sign-off list independently of app.js,
-    // reads each ticket's "Sign-off" checklist, and compares Developer vs QA
-    // load per person on ACTIVE (non-done) tickets.
+    // ── Resource Balance card — QA vs Dev wait-time bottleneck (monthly) ─────
+    // Self-contained: fetches from the Sign-off list independently of app.js.
+    // Proves whether QA is the bottleneck by comparing how long tickets sit in
+    // QA statuses vs dev statuses.
+    //
+    // Wait-time proxy: ClickUp's free plan exposes no per-status history
+    // (/time_in_status is paywalled; there's no activity endpoint). So for a
+    // ticket CURRENTLY in a QA/dev status we approximate "time waiting in status"
+    // as (now - date_updated) — days since the last activity while in that status.
+    // Labeled clearly on the card. Filters tickets by date_updated within the
+    // selected calendar month.
     (function () {
         const SIGNOFF_LIST_ID = localStorage.getItem('signoff_list_id') || '901616211048';
-        const DONE_STATUSES = ['released to prod', 'for release', 'resolved - no code changes', 'closed'];
-        const CONCURRENCY = 6;
+        const STALLED_DAYS = 7;
+
+        // Statuses that represent work waiting on / owned by each role.
+        const QA_STATUSES = ['pending review (qa)', 'for testing in hotfix', 'ongoing testing', 'testing: failed'];
+        const DEV_STATUSES = ['ongoing dev', 'done development', 'for deployment to hotfix'];
+
+        let monthOffset = 0; // 0 = current month, -1 = last month, ...
 
         function proxyFetch(apiPath) {
-            if (window.location.protocol === 'file:') {
-                return Promise.reject(new Error('Must be hosted on Netlify.'));
-            }
+            if (window.location.protocol === 'file:') return Promise.reject(new Error('Must be hosted on Netlify.'));
             return fetch('/.netlify/functions/clickup-proxy?path=' + encodeURIComponent(apiPath));
-        }
-
-        function roleItem(task, re) {
-            const cl = (task.checklists || []).find(c => c.name === 'Sign-off');
-            if (!cl) return null;
-            const it = (cl.items || []).find(i => re.test(i.name || ''));
-            if (!it) return null;
-            return { assignee: it.assignee || null, resolved: !!it.resolved };
-        }
-
-        async function mapPool(items, worker, concurrency) {
-            const out = new Array(items.length);
-            let idx = 0;
-            async function run() {
-                while (idx < items.length) {
-                    const my = idx++;
-                    try { out[my] = await worker(items[my]); } catch (e) { out[my] = null; }
-                }
-            }
-            const runners = [];
-            for (let i = 0; i < Math.min(concurrency, items.length); i++) runners.push(run());
-            await Promise.all(runners);
-            return out;
         }
 
         function show(id, on) { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; }
         function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
+        function avg(a) { return a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0; }
+        function median(a) { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+
+        function monthBounds(offset) {
+            const now = new Date();
+            const from = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+            const to = new Date(now.getFullYear(), now.getMonth() + offset + 1, 1); // exclusive
+            return { from, to };
+        }
+        function monthLabel(offset) {
+            return monthBounds(offset).from.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        }
 
         async function loadBalance() {
+            show('balanceError', false);
+            show('balanceBody', false);
+            show('balanceLoading', true);
+            setText('balMonthLabel', monthLabel(monthOffset));
+            document.getElementById('balNextMonth').disabled = monthOffset >= 0;
+
             try {
-                // Page through the sign-off list.
+                const { from, to } = monthBounds(monthOffset);
+                const fromTs = from.getTime();
+                const toTs = to.getTime();
+
+                // Page through the sign-off list, filtered to the month by date_updated.
                 let list = [], page = 0, more = true;
                 while (more) {
-                    const res = await proxyFetch(`/api/v2/list/${SIGNOFF_LIST_ID}/task?page=${page}&subtasks=true&include_closed=true`);
+                    const res = await proxyFetch(`/api/v2/list/${SIGNOFF_LIST_ID}/task?page=${page}&subtasks=true&include_closed=true&date_updated_gt=${fromTs}&date_updated_lt=${toTs}`);
                     if (!res.ok) throw new Error('API error ' + res.status);
                     const data = await res.json();
                     list = list.concat(data.tasks || []);
@@ -292,76 +332,67 @@
                     page++;
                     if (page > 30) break;
                 }
-                // Fan out for checklists.
-                const details = await mapPool(list, async (t) => {
-                    const r = await proxyFetch(`/api/v2/task/${t.id}`);
-                    return r.ok ? r.json() : null;
-                }, CONCURRENCY);
 
-                const devRe = /^Developer\b/i, qaRe = /^QA\b/i;
-                let devActive = 0, qaActive = 0;
-                const devPeople = new Set(), qaPeople = new Set();
-                let devSigned = 0, qaSigned = 0;
+                const now = Date.now();
+                const daysSince = (t) => (now - parseInt(t.date_updated || now)) / 86400000;
 
-                details.forEach(t => {
-                    if (!t) return;
+                const qaWaits = [], devWaits = [];
+                let qaStalled = 0;
+                list.forEach(t => {
                     const status = (t.status && t.status.status || '').toLowerCase();
-                    const done = DONE_STATUSES.includes(status);
-                    const d = roleItem(t, devRe);
-                    const q = roleItem(t, qaRe);
-                    if (d && !done) { devActive++; if (d.assignee) devPeople.add(d.assignee.username); }
-                    if (q && !done) { qaActive++; if (q.assignee) qaPeople.add(q.assignee.username); }
-                    if (d && d.resolved) devSigned++;
-                    if (q && q.resolved) qaSigned++;
+                    const d = daysSince(t);
+                    if (QA_STATUSES.includes(status)) { qaWaits.push(d); if (d > STALLED_DAYS) qaStalled++; }
+                    else if (DEV_STATUSES.includes(status)) { devWaits.push(d); }
                 });
 
-                const devN = devPeople.size || 0;
-                const qaN = qaPeople.size || 0;
-                const devLoad = devN ? devActive / devN : 0;
-                const qaLoad = qaN ? qaActive / qaN : 0;
+                const qaAvg = avg(qaWaits), devAvg = avg(devWaits), qaMed = median(qaWaits);
 
-                setText('balDevLoad', devLoad ? devLoad.toFixed(1) : '—');
-                setText('balQaLoad', qaLoad ? qaLoad.toFixed(1) : '—');
-                setText('balDevMeta', `${devActive} active · ${devN} developer${devN === 1 ? '' : 's'}`);
-                setText('balQaMeta', `${qaActive} active · ${qaN} QA${qaN === 1 ? '' : 's'}`);
+                setText('balDevWait', devWaits.length ? devAvg.toFixed(1) : '—');
+                setText('balQaWait', qaWaits.length ? qaAvg.toFixed(1) : '—');
+                setText('balDevMeta', `${devWaits.length} ticket${devWaits.length === 1 ? '' : 's'} in dev`);
+                setText('balQaMeta', `${qaWaits.length} ticket${qaWaits.length === 1 ? '' : 's'} in QA`);
+                setText('balQaStalled', qaStalled);
+                setText('balQaQueue', qaWaits.length);
+                setText('balDevQueue', devWaits.length);
+                setText('balQaMedian', qaWaits.length ? qaMed.toFixed(1) : '—');
 
-                // Bar split by relative per-person load.
-                const totalLoad = devLoad + qaLoad;
-                const devPct = totalLoad ? (devLoad / totalLoad) * 100 : 50;
+                // Bar split by relative avg wait.
+                const total = qaAvg + devAvg;
+                const devPct = total ? (devAvg / total) * 100 : 50;
                 document.getElementById('balBarDev').style.width = devPct + '%';
                 document.getElementById('balBarQa').style.width = (100 - devPct) + '%';
 
-                // Verdict: compare per-person load. Within 20% => balanced.
+                // Verdict.
                 const verdictEl = document.getElementById('balanceVerdict');
-                const noteEl = document.getElementById('balanceNote');
-                let ratioText = '', verdictHtml = '', cls = '', note = '';
-                if (!devLoad || !qaLoad) {
+                let cls, verdictHtml, note, ratioText = '';
+                if (!qaWaits.length || !devWaits.length) {
                     cls = 'verdict-balanced';
                     verdictHtml = 'Not enough data <span class="verdict-pill">n/a</span>';
-                    note = 'Need at least one active Developer and one active QA sign-off to compare.';
-                    ratioText = '';
+                    note = `No tickets updated in ${monthLabel(monthOffset)} are currently sitting in both QA and dev statuses, so wait time can't be compared for this month.`;
                 } else {
-                    const ratio = devLoad / qaLoad;
-                    ratioText = `Dev carries ${ratio >= 1 ? ratio.toFixed(2) + '×' : (1 / ratio).toFixed(2) + '× less than'} QA per person`;
-                    const diff = Math.abs(devLoad - qaLoad) / Math.max(devLoad, qaLoad);
+                    const ratio = qaAvg / devAvg;
+                    ratioText = qaAvg >= devAvg ? `QA waits ${ratio.toFixed(1)}× longer` : `Dev waits ${(1 / ratio).toFixed(1)}× longer`;
+                    const diff = Math.abs(qaAvg - devAvg) / Math.max(qaAvg, devAvg);
                     if (diff <= 0.20) {
                         cls = 'verdict-balanced';
                         verdictHtml = 'Balanced <span class="verdict-pill">healthy</span>';
-                        note = `Developer and QA per-person load are within 20% of each other (${devLoad.toFixed(1)} vs ${qaLoad.toFixed(1)} active tickets/person). No resourcing action needed right now.`;
-                    } else if (qaLoad > devLoad) {
+                        note = `Tickets wait about the same in QA (${qaAvg.toFixed(1)}d) and dev (${devAvg.toFixed(1)}d) statuses. No wait-time bottleneck this month.`;
+                    } else if (qaAvg > devAvg) {
                         cls = 'verdict-qa';
                         verdictHtml = 'QA is the bottleneck <span class="verdict-pill">add QA</span>';
-                        note = `Each QA is carrying ${qaLoad.toFixed(1)} active tickets vs ${devLoad.toFixed(1)} per developer — QA is ${((qaLoad / devLoad - 1) * 100).toFixed(0)}% more loaded. Consider adding QA capacity or rebalancing.`;
+                        note = `Tickets sit in QA statuses ${ratio.toFixed(1)}× longer than in dev (${qaAvg.toFixed(1)}d vs ${devAvg.toFixed(1)}d), and ${qaStalled} QA ticket${qaStalled === 1 ? ' has' : 's have'} been stalled over ${STALLED_DAYS} days. Work is backing up before QA — with only a few QAs, losing one sharply raises release wait time. Consider adding QA capacity.`;
                     } else {
                         cls = 'verdict-dev';
                         verdictHtml = 'Development is the bottleneck <span class="verdict-pill">add devs</span>';
-                        note = `Each developer is carrying ${devLoad.toFixed(1)} active tickets vs ${qaLoad.toFixed(1)} per QA — Dev is ${((devLoad / qaLoad - 1) * 100).toFixed(0)}% more loaded. Consider adding developer capacity or rebalancing.`;
+                        note = `Tickets sit in dev statuses ${(1 / ratio).toFixed(1)}× longer than in QA (${devAvg.toFixed(1)}d vs ${qaAvg.toFixed(1)}d). Work is backing up before development. Consider adding developer capacity.`;
                     }
                 }
                 verdictEl.className = 'balance-verdict ' + cls;
                 verdictEl.innerHTML = verdictHtml;
                 document.getElementById('balRatio').textContent = ratioText;
-                noteEl.textContent = note;
+                document.getElementById('balanceNote').textContent = note;
+                document.getElementById('balanceDisclaimer').textContent =
+                    'Wait time = days since a ticket\u2019s last update while sitting in a QA/dev status (approximation; ClickUp\u2019s free plan does not expose full status history). Scoped to tickets updated in the selected month.';
 
                 show('balanceLoading', false);
                 show('balanceBody', true);
@@ -373,9 +404,14 @@
             }
         }
 
-        // Kick off after initial paint; independent of the main dashboard load.
+        function initBalance() {
+            document.getElementById('balPrevMonth').addEventListener('click', () => { monthOffset--; loadBalance(); });
+            document.getElementById('balNextMonth').addEventListener('click', () => { if (monthOffset < 0) { monthOffset++; loadBalance(); } });
+            loadBalance();
+        }
+
         if (window.location.protocol !== 'file:') {
-            window.addEventListener('load', () => setTimeout(loadBalance, 400));
+            window.addEventListener('load', () => setTimeout(initBalance, 400));
         }
     })();
     </script>
