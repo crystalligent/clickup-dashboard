@@ -19,9 +19,22 @@
 
     let monthOffset = 0; // 0 = current month, -1 = last month, ...
 
-    function proxyFetch(apiPath) {
-        if (window.location.protocol === 'file:') return Promise.reject(new Error('Must be hosted on Netlify.'));
-        return fetch('/.netlify/functions/clickup-proxy?path=' + encodeURIComponent(apiPath));
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    // Proxy fetch with retry on rate limiting (429). ClickUp free plan caps at
+    // ~100 req/min; the per-task fan-out can hit it, so back off and retry.
+    async function proxyFetch(apiPath) {
+        if (window.location.protocol === 'file:') throw new Error('Must be hosted on Netlify.');
+        const url = '/.netlify/functions/clickup-proxy?path=' + encodeURIComponent(apiPath);
+        const MAX_RETRIES = 5;
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            const res = await fetch(url);
+            if (res.status !== 429) return res;
+            const retryAfter = parseInt(res.headers.get('retry-after') || '0', 10);
+            const wait = retryAfter > 0 ? retryAfter * 1000 : Math.min(20000, 1500 * Math.pow(2, attempt));
+            await sleep(wait);
+        }
+        return fetch(url);
     }
 
     function show(id, on) { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; }

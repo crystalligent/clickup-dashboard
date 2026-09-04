@@ -11,8 +11,9 @@ const CHECKLIST_NAME = 'Sign-off';
 const ROLE = (window.SIGNOFF_ROLE || 'Developer');
 const ROLE_RE = ROLE === 'QA' ? /^QA\b/i : /^Developer\b/i;
 
-// Concurrency for per-task checklist fetches (throttle to be nice to ClickUp)
-const FETCH_CONCURRENCY = 6;
+// Concurrency for per-task checklist fetches. Kept low to stay under ClickUp's
+// free-plan rate limit (~100 req/min); clickupFetch also retries on 429.
+const FETCH_CONCURRENCY = 3;
 
 // Status phase grouping (for the per-person progress bar / stage view)
 const STATUS_PHASES = {
@@ -48,12 +49,27 @@ function getApiBase() {
     return null;
 }
 
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+// Fetch through the proxy with automatic retry on rate limiting (429).
+// ClickUp's free plan caps at ~100 requests/minute; fanning out per-task
+// checklist reads can hit that, so we back off and retry rather than fail.
 async function clickupFetch(apiPath) {
     const proxyBase = getApiBase();
-    if (proxyBase) {
-        return fetch(proxyBase + encodeURIComponent(apiPath));
+    if (!proxyBase) throw new Error('This dashboard must be hosted on Netlify to access ClickUp data.');
+
+    const url = proxyBase + encodeURIComponent(apiPath);
+    const MAX_RETRIES = 5;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        const res = await fetch(url);
+        if (res.status !== 429) return res;
+        // Rate limited: honor Retry-After if present, else exponential backoff.
+        const retryAfter = parseInt(res.headers.get('retry-after') || '0', 10);
+        const wait = retryAfter > 0 ? retryAfter * 1000 : Math.min(20000, 1500 * Math.pow(2, attempt));
+        await sleep(wait);
     }
-    throw new Error('This dashboard must be hosted on Netlify to access ClickUp data.');
+    // Exhausted retries — return the last (429) response for the caller to surface.
+    return fetch(url);
 }
 
 // --- State ---
