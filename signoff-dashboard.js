@@ -283,6 +283,8 @@ function render() {
     renderKpis();
     renderPersonChart();
     renderStatusChart();
+    renderPersonCounts();
+    renderStatusCounts();
     renderPersonCards();
     populateFilters();
     currentPage = 1;
@@ -308,6 +310,10 @@ function setText(id, v) { const el = document.getElementById(id); if (el) el.tex
 
 function destroyChart(id) { if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; } }
 
+// The datalabels plugin is only loaded on pages that include its script.
+// Fall back to an empty list so charts still render where it's absent.
+const DATA_LABEL_PLUGINS = (typeof ChartDataLabels !== 'undefined') ? [ChartDataLabels] : [];
+
 function renderPersonChart() {
     const counts = {};
     tasks.forEach(t => { const n = personName(t.__role.assignee); counts[n] = (counts[n] || 0) + 1; });
@@ -317,12 +323,22 @@ function renderPersonChart() {
         type: 'bar',
         data: { labels: sorted.map(s => s[0]), datasets: [{ data: sorted.map(s => s[1]), backgroundColor: ROLE === 'QA' ? '#4da6ff' : '#7c6cf0', borderRadius: 6, maxBarThickness: 40 }] },
         options: {
-            indexAxis: 'y', responsive: true, plugins: { legend: { display: false } },
+            indexAxis: 'y', responsive: true,
+            layout: { padding: { right: 24 } },
+            plugins: {
+                legend: { display: false },
+                datalabels: {
+                    anchor: 'end', align: 'end', color: '#e8edf2',
+                    font: { size: 11, weight: 'bold' },
+                    formatter: (v) => v
+                }
+            },
             scales: {
                 x: { ticks: { color: '#7d8fa3', stepSize: 1 }, grid: { color: 'rgba(125,143,163,0.08)' } },
                 y: { ticks: { color: '#7d8fa3', font: { size: 11 } }, grid: { display: false } }
             }
-        }
+        },
+        plugins: DATA_LABEL_PLUGINS
     });
 }
 
@@ -331,11 +347,87 @@ function renderStatusChart() {
     tasks.forEach(t => { const s = (t.status && t.status.status) || 'Unknown'; counts[s] = (counts[s] || 0) + 1; if (t.status && t.status.color) colors[s] = t.status.color; });
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
     destroyChart('statusChart');
+    const statusTotal = sorted.reduce((a, s) => a + s[1], 0);
     chartInstances['statusChart'] = new Chart(document.getElementById('statusChart'), {
         type: 'doughnut',
         data: { labels: sorted.map(s => s[0]), datasets: [{ data: sorted.map(s => s[1]), backgroundColor: sorted.map(s => colors[s[0]] || '#7c6cf0'), borderWidth: 0, hoverOffset: 8 }] },
-        options: { responsive: true, cutout: '55%', plugins: { legend: { position: 'right', labels: { color: '#7d8fa3', padding: 8, font: { size: 10 } } } } }
+        options: {
+            responsive: true, cutout: '55%',
+            plugins: {
+                legend: { position: 'right', labels: { color: '#7d8fa3', padding: 8, font: { size: 10 } } },
+                datalabels: {
+                    color: '#fff',
+                    font: { size: 11, weight: 'bold' },
+                    // Hide labels on tiny slices to avoid clutter.
+                    display: (ctx) => ctx.dataset.data[ctx.dataIndex] / statusTotal >= 0.04,
+                    formatter: (v) => v
+                }
+            }
+        },
+        plugins: DATA_LABEL_PLUGINS
     });
+}
+
+// Numeric breakdown: tickets per developer (clear counts, no hover needed).
+function renderPersonCounts() {
+    const listEl = document.getElementById('personCountList');
+    const totalEl = document.getElementById('personCountTotal');
+    if (!listEl) return;
+
+    const counts = {};
+    tasks.forEach(t => { const n = personName(t.__role.assignee); counts[n] = (counts[n] || 0) + 1; });
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const total = sorted.reduce((a, s) => a + s[1], 0);
+    const max = sorted.length ? sorted[0][1] : 0;
+    const barColor = ROLE === 'QA' ? '#4da6ff' : '#7c6cf0';
+
+    if (totalEl) totalEl.textContent = total ? `· ${total} total` : '';
+    if (!sorted.length) { listEl.innerHTML = `<div class="count-empty">No data for this range.</div>`; return; }
+
+    listEl.innerHTML = sorted.map(([name, count]) => {
+        const pct = total ? Math.round((count / total) * 100) : 0;
+        const width = max ? (count / max) * 100 : 0;
+        return `<div class="count-row">
+            <span class="count-dot" style="background:${barColor}"></span>
+            <span class="count-name">${escapeHtml(name)}</span>
+            <span class="count-value">${count}</span>
+            <span class="count-pct">${pct}%</span>
+            <div class="count-track"><div class="count-fill" style="width:${width}%;background:${barColor}"></div></div>
+        </div>`;
+    }).join('');
+}
+
+// Numeric breakdown: tickets per status (clear counts, no hover needed).
+function renderStatusCounts() {
+    const listEl = document.getElementById('statusCountList');
+    const totalEl = document.getElementById('statusCountTotal');
+    if (!listEl) return;
+
+    const counts = {}; const colors = {};
+    tasks.forEach(t => {
+        const s = (t.status && t.status.status) || 'Unknown';
+        counts[s] = (counts[s] || 0) + 1;
+        if (t.status && t.status.color) colors[s] = t.status.color;
+    });
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const total = sorted.reduce((a, s) => a + s[1], 0);
+    const max = sorted.length ? sorted[0][1] : 0;
+
+    if (totalEl) totalEl.textContent = total ? `· ${total} total` : '';
+    if (!sorted.length) { listEl.innerHTML = `<div class="count-empty">No data for this range.</div>`; return; }
+
+    listEl.innerHTML = sorted.map(([name, count]) => {
+        const color = colors[name] || '#7c6cf0';
+        const pct = total ? Math.round((count / total) * 100) : 0;
+        const width = max ? (count / max) * 100 : 0;
+        return `<div class="count-row">
+            <span class="count-dot" style="background:${color}"></span>
+            <span class="count-name">${escapeHtml(name)}</span>
+            <span class="count-value">${count}</span>
+            <span class="count-pct">${pct}%</span>
+            <div class="count-track"><div class="count-fill" style="width:${width}%;background:${color}"></div></div>
+        </div>`;
+    }).join('');
 }
 
 function renderPersonCards() {

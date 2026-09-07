@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="signoff-dashboard.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 </head>
 <body>
     <div class="app">
@@ -116,6 +117,19 @@
                 <div class="charts-grid-2">
                     <div class="chart-card"><h3>Tickets by Developer</h3><canvas id="personChart"></canvas></div>
                     <div class="chart-card"><h3>Status Distribution</h3><canvas id="statusChart"></canvas></div>
+                </div>
+            </section>
+
+            <section class="section">
+                <div class="charts-grid-2">
+                    <div class="chart-card">
+                        <h3>Tickets by Developer <span class="count-total" id="personCountTotal"></span></h3>
+                        <div class="count-list" id="personCountList"></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Status Distribution <span class="count-total" id="statusCountTotal"></span></h3>
+                        <div class="count-list" id="statusCountList"></div>
+                    </div>
                 </div>
             </section>
 
