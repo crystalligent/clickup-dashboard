@@ -197,19 +197,37 @@
                             <button class="btn btn-copy" onclick="copySelectedTasks()">📋 Copy to Clipboard</button>
                         </div>
                         <div class="table-filters">
-                            <select id="filterStatus" onchange="renderTable()">
-                                <option value="">All Statuses</option>
-                            </select>
-                            <select id="filterPriority" onchange="renderTable()">
-                                <option value="">All Priorities</option>
-                            </select>
-                            <select id="filterAssignee" onchange="renderTable()">
-                                <option value="">All Assignees</option>
-                            </select>
-                            <select id="filterTag" onchange="renderTable()">
-                                <option value="">All Tags</option>
-                            </select>
+                            <div class="multiselect" id="msStatus" data-filter="status">
+                                <button type="button" class="multiselect-toggle" onclick="toggleMultiselect('msStatus', event)">
+                                    <span class="multiselect-label">All Statuses</span>
+                                    <span class="multiselect-caret">▾</span>
+                                </button>
+                                <div class="multiselect-panel"></div>
+                            </div>
+                            <div class="multiselect" id="msPriority" data-filter="priority">
+                                <button type="button" class="multiselect-toggle" onclick="toggleMultiselect('msPriority', event)">
+                                    <span class="multiselect-label">All Priorities</span>
+                                    <span class="multiselect-caret">▾</span>
+                                </button>
+                                <div class="multiselect-panel"></div>
+                            </div>
+                            <div class="multiselect" id="msAssignee" data-filter="assignee">
+                                <button type="button" class="multiselect-toggle" onclick="toggleMultiselect('msAssignee', event)">
+                                    <span class="multiselect-label">All Assignees</span>
+                                    <span class="multiselect-caret">▾</span>
+                                </button>
+                                <div class="multiselect-panel"></div>
+                            </div>
+                            <div class="multiselect" id="msTag" data-filter="tag">
+                                <button type="button" class="multiselect-toggle" onclick="toggleMultiselect('msTag', event)">
+                                    <span class="multiselect-label">All Tags</span>
+                                    <span class="multiselect-caret">▾</span>
+                                </button>
+                                <div class="multiselect-panel"></div>
+                            </div>
                             <input type="text" id="filterSearch" placeholder="Search tasks..." oninput="renderTable()" />
+                            <button class="btn btn-clear-filters" onclick="clearAllFilters()" title="Clear all filters">✕ Clear</button>
+                            <button class="btn btn-export" onclick="exportToCSV()" title="Export filtered tasks to CSV">📥 Export CSV</button>
                         </div>
                     </div>
                     <div class="table-stats" id="tableStats"></div>

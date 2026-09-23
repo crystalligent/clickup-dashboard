@@ -617,3 +617,144 @@ tr:hover td {
     background: var(--success) !important;
     border-color: var(--success) !important;
 }
+
+/* Multi-select filter dropdowns */
+.multiselect {
+    position: relative;
+    min-width: 140px;
+}
+
+.multiselect-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+}
+
+.multiselect-toggle:hover { border-color: var(--text-dim); }
+.multiselect.open .multiselect-toggle { border-color: var(--primary); }
+.multiselect.has-selection .multiselect-toggle {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+}
+
+.multiselect-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.multiselect-caret {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    transition: transform 0.15s ease;
+}
+.multiselect.open .multiselect-caret { transform: rotate(180deg); }
+
+.multiselect-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 50;
+    min-width: 100%;
+    max-width: 260px;
+    max-height: 280px;
+    overflow-y: auto;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow);
+    padding: 4px;
+}
+.multiselect.open .multiselect-panel { display: block; }
+
+.multiselect-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    font-size: 0.8rem;
+    color: var(--text);
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.multiselect-option:hover { background: var(--surface-3); }
+.multiselect-option input { width: auto; cursor: pointer; accent-color: var(--primary); }
+
+.multiselect-empty {
+    padding: 8px;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+}
+
+/* Clear + Export buttons in the filter row */
+.btn-clear-filters,
+.btn-export {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-clear-filters {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+}
+.btn-clear-filters:hover { border-color: var(--danger); color: var(--danger); }
+
+.btn-export {
+    background: var(--success-soft);
+    border: 1px solid var(--success);
+    color: var(--success);
+}
+.btn-export:hover { background: var(--success); color: #fff; transform: translateY(-1px); }
+
+@media (max-width: 768px) {
+    .multiselect { min-width: 100%; }
+}
+
+/* Select all / Clear shortcuts inside each dropdown */
+.multiselect-head {
+    display: flex;
+    gap: 6px;
+    padding: 4px 4px 6px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--surface-2);
+    z-index: 1;
+}
+
+.multiselect-action {
+    flex: 1;
+    padding: 4px 8px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.multiselect-action:hover { color: var(--primary); border-color: var(--primary); }
+
+/* Active-filter summary next to the task count */
+.filter-summary {
+    color: var(--text-muted);
+    font-style: italic;
+}

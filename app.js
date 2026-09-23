@@ -596,41 +596,184 @@ function renderTeamGrid() {
 
 // --- Table ---
 
-function populateFilters() {
-    const statuses = [...new Set(allTasks.map(t => t.status?.status || 'Unknown'))].sort();
-    const priorities = ['urgent', 'high', 'normal', 'low', 'none'];
-    const assignees = [...new Set(allTasks.flatMap(t => (t.assignees || []).map(a => a.username)))].filter(Boolean).sort();
-    const tags = [...new Set(allTasks.flatMap(t => (t.tags || []).map(tag => tag.name)))].filter(Boolean).sort();
+// --- Multi-select filters ---
+// Each filter can hold multiple selected values. A task matches a filter if it
+// matches ANY of that filter's selected values (OR within a filter), and it must
+// match every active filter (AND across filters).
+const selectedFilters = {
+    status: new Set(),
+    priority: new Set(),
+    assignee: new Set(),
+    tag: new Set(),
+};
 
-    document.getElementById('filterStatus').innerHTML =
-        '<option value="">All Statuses</option>' + statuses.map(s => `<option value="${s}">${s}</option>`).join('');
-    document.getElementById('filterPriority').innerHTML =
-        '<option value="">All Priorities</option>' + priorities.map(p => `<option value="${p}">${p}</option>`).join('');
-    document.getElementById('filterAssignee').innerHTML =
-        '<option value="">All Assignees</option>' + assignees.map(a => `<option value="${a}">${a}</option>`).join('');
-    document.getElementById('filterTag').innerHTML =
-        '<option value="">All Tags</option>' + tags.map(t => `<option value="${t}">${t}</option>`).join('');
+const MULTISELECT_LABELS = {
+    status: 'Statuses',
+    priority: 'Priorities',
+    assignee: 'Assignees',
+    tag: 'Tags',
+};
+
+function populateFilters() {
+    const options = {
+        status: [...new Set(allTasks.map(t => t.status?.status || 'Unknown'))].sort(),
+        priority: ['urgent', 'high', 'normal', 'low', 'none'],
+        assignee: [...new Set(allTasks.flatMap(t => (t.assignees || []).map(a => a.username)))].filter(Boolean).sort(),
+        tag: [...new Set(allTasks.flatMap(t => (t.tags || []).map(tag => tag.name)))].filter(Boolean).sort(),
+    };
+
+    // Drop any previously selected values that no longer exist in the new dataset.
+    Object.keys(selectedFilters).forEach(key => {
+        const valid = new Set(options[key]);
+        [...selectedFilters[key]].forEach(v => { if (!valid.has(v)) selectedFilters[key].delete(v); });
+    });
+
+    renderMultiselect('msStatus', 'status', options.status);
+    renderMultiselect('msPriority', 'priority', options.priority);
+    renderMultiselect('msAssignee', 'assignee', options.assignee);
+    renderMultiselect('msTag', 'tag', options.tag);
+}
+
+function renderMultiselect(elId, filterKey, values) {
+    const wrap = document.getElementById(elId);
+    if (!wrap) return;
+    const panel = wrap.querySelector('.multiselect-panel');
+
+    if (!values.length) {
+        panel.innerHTML = `<div class="multiselect-empty">No options</div>`;
+    } else {
+        const head = `<div class="multiselect-head">
+            <button type="button" class="multiselect-action" onclick="selectAllInFilter('${filterKey}', event)">Select all</button>
+            <button type="button" class="multiselect-action" onclick="clearFilter('${filterKey}', event)">Clear</button>
+        </div>`;
+        const opts = values.map(v => {
+            const checked = selectedFilters[filterKey].has(v) ? 'checked' : '';
+            return `<label class="multiselect-option">
+                <input type="checkbox" value="${escapeHtml(v)}" ${checked}
+                       onchange="onMultiselectChange('${filterKey}', this)" />
+                <span>${escapeHtml(v)}</span>
+            </label>`;
+        }).join('');
+        panel.innerHTML = head + opts;
+    }
+    updateMultiselectLabel(elId, filterKey);
+}
+
+function updateMultiselectLabel(elId, filterKey) {
+    const wrap = document.getElementById(elId);
+    if (!wrap) return;
+    const labelEl = wrap.querySelector('.multiselect-label');
+    const count = selectedFilters[filterKey].size;
+    const noun = MULTISELECT_LABELS[filterKey];
+    if (count === 0) {
+        labelEl.textContent = `All ${noun}`;
+        wrap.classList.remove('has-selection');
+    } else if (count === 1) {
+        labelEl.textContent = [...selectedFilters[filterKey]][0];
+        wrap.classList.add('has-selection');
+    } else {
+        labelEl.textContent = `${count} ${noun}`;
+        wrap.classList.add('has-selection');
+    }
+}
+
+function onMultiselectChange(filterKey, checkbox) {
+    const value = checkbox.value;
+    if (checkbox.checked) selectedFilters[filterKey].add(value);
+    else selectedFilters[filterKey].delete(value);
+
+    const elId = 'ms' + filterKey.charAt(0).toUpperCase() + filterKey.slice(1);
+    updateMultiselectLabel(elId, filterKey);
+    currentPage = 1;
+    renderTable();
+}
+
+function msElId(filterKey) {
+    return 'ms' + filterKey.charAt(0).toUpperCase() + filterKey.slice(1);
+}
+
+function selectAllInFilter(filterKey, event) {
+    if (event) event.stopPropagation();
+    const wrap = document.getElementById(msElId(filterKey));
+    if (!wrap) return;
+    wrap.querySelectorAll('.multiselect-option input').forEach(cb => {
+        cb.checked = true;
+        selectedFilters[filterKey].add(cb.value);
+    });
+    updateMultiselectLabel(msElId(filterKey), filterKey);
+    currentPage = 1;
+    renderTable();
+}
+
+function clearFilter(filterKey, event) {
+    if (event) event.stopPropagation();
+    const wrap = document.getElementById(msElId(filterKey));
+    if (!wrap) return;
+    wrap.querySelectorAll('.multiselect-option input').forEach(cb => { cb.checked = false; });
+    selectedFilters[filterKey].clear();
+    updateMultiselectLabel(msElId(filterKey), filterKey);
+    currentPage = 1;
+    renderTable();
+}
+
+function toggleMultiselect(elId, event) {
+    if (event) event.stopPropagation();
+    const wrap = document.getElementById(elId);
+    const isOpen = wrap.classList.contains('open');
+    // Close all others, then toggle this one.
+    document.querySelectorAll('.multiselect.open').forEach(el => el.classList.remove('open'));
+    if (!isOpen) wrap.classList.add('open');
+}
+
+// Close any open dropdown when clicking outside of it.
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.multiselect')) {
+        document.querySelectorAll('.multiselect.open').forEach(el => el.classList.remove('open'));
+    }
+});
+
+function clearAllFilters() {
+    Object.values(selectedFilters).forEach(set => set.clear());
+    const search = document.getElementById('filterSearch');
+    if (search) search.value = '';
+    populateFilters();
+    currentPage = 1;
+    renderTable();
+}
+
+// Small summary of which filters are active, shown next to the task count.
+function activeFilterSummary() {
+    const parts = [];
+    Object.keys(selectedFilters).forEach(key => {
+        const n = selectedFilters[key].size;
+        if (n) parts.push(`${n} ${MULTISELECT_LABELS[key].toLowerCase()}`);
+    });
+    const search = (document.getElementById('filterSearch').value || '').trim();
+    if (search) parts.push(`search "${escapeHtml(search)}"`);
+    if (!parts.length) return '';
+    return ` <span class="filter-summary">· filtered by ${parts.join(', ')}</span>`;
 }
 
 function getFilteredTasks() {
-    const statusFilter = document.getElementById('filterStatus').value;
-    const priorityFilter = document.getElementById('filterPriority').value;
-    const assigneeFilter = document.getElementById('filterAssignee').value;
-    const tagFilter = document.getElementById('filterTag').value;
     const search = document.getElementById('filterSearch').value.toLowerCase();
 
     let filtered = allTasks;
 
-    if (statusFilter) filtered = filtered.filter(t => (t.status?.status || 'Unknown') === statusFilter);
-    if (priorityFilter) {
-        if (priorityFilter === 'none') {
-            filtered = filtered.filter(t => !t.priority);
-        } else {
-            filtered = filtered.filter(t => t.priority?.priority === priorityFilter);
-        }
+    if (selectedFilters.status.size) {
+        filtered = filtered.filter(t => selectedFilters.status.has(t.status?.status || 'Unknown'));
     }
-    if (assigneeFilter) filtered = filtered.filter(t => t.assignees?.some(a => a.username === assigneeFilter));
-    if (tagFilter) filtered = filtered.filter(t => t.tags?.some(tag => tag.name === tagFilter));
+    if (selectedFilters.priority.size) {
+        filtered = filtered.filter(t => {
+            const p = t.priority?.priority || 'none';
+            return selectedFilters.priority.has(t.priority ? p : 'none');
+        });
+    }
+    if (selectedFilters.assignee.size) {
+        filtered = filtered.filter(t => (t.assignees || []).some(a => selectedFilters.assignee.has(a.username)));
+    }
+    if (selectedFilters.tag.size) {
+        filtered = filtered.filter(t => (t.tags || []).some(tag => selectedFilters.tag.has(tag.name)));
+    }
     if (search) filtered = filtered.filter(t => t.name.toLowerCase().includes(search));
 
     return filtered;
@@ -668,7 +811,8 @@ function renderTable() {
         return currentSort.direction === 'asc' ? va - vb : vb - va;
     });
 
-    document.getElementById('tableStats').textContent = `Showing ${filtered.length} of ${allTasks.length} tasks`;
+    document.getElementById('tableStats').innerHTML =
+        `Showing ${filtered.length} of ${allTasks.length} tasks` + activeFilterSummary();
 
     // Paginate
     const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -825,6 +969,41 @@ function copySelectedTasks() {
             btn.classList.remove('btn-copied');
         }, 2000);
     });
+}
+
+// --- CSV Export ---
+
+// Exports the currently filtered + sorted task list (all pages, not just the
+// current page). Respects the active multi-select filters and search box.
+function exportToCSV() {
+    const tasks = getFilteredTasks();
+    if (!tasks.length) { showError('No tasks to export for the current filters.'); return; }
+    hideError();
+
+    const headers = ['Task', 'GitLab IID', 'Status', 'Priority', 'Assignees', 'Tags', 'Created', 'URL'];
+    const rows = tasks.map(t => [
+        t.name || '',
+        getGitlabId(t.name),
+        t.status?.status || '',
+        t.priority?.priority || '',
+        (t.assignees || []).map(a => a.username).join('; '),
+        (t.tags || []).map(tag => tag.name).join('; '),
+        t.date_created ? new Date(parseInt(t.date_created)).toISOString().split('T')[0] : '',
+        t.url || '',
+    ]);
+
+    const esc = (cell) => `"${String(cell).replace(/"/g, '""')}"`;
+    const csv = [headers, ...rows].map(r => r.map(esc).join(',')).join('\n');
+
+    // Prepend UTF-8 BOM so Excel opens accented characters correctly.
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `bxi-tasks-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
 }
 
 // --- Helpers ---
