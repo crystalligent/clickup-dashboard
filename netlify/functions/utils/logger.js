@@ -42,11 +42,17 @@ async function logRun(entry) {
     issueTitle: entry.issueTitle || null,
     clickupTaskId: entry.clickupTaskId || null,
     clickupStatus: entry.clickupStatus || null,
-    milestone: entry.milestone || null,
+    milestone: typeof entry.milestone === 'string' ? entry.milestone.trim().slice(0, 255) : '',
+    statusOrigin: entry.statusOrigin || null,
     labels: entry.labels || [],
     error: entry.error || null,
     details: entry.details || null,
   };
+
+  // Optional status-not-found count on run-summary entries
+  if (typeof entry.statusNotFoundCount === 'number') {
+    logEntry.statusNotFoundCount = entry.statusNotFoundCount;
+  }
 
   console.log(`[sync-log] ${logEntry.source} | ${logEntry.action} | ${logEntry.status} | issue #${logEntry.issueIid || '-'}`);
 

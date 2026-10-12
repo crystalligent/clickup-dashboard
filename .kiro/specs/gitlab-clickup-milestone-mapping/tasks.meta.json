@@ -1,0 +1,257 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Set up the test framework and project tooling": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450674452
+      },
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450696158
+      },
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791453549844
+      }
+    ],
+    "2.1 Implement normalization and the Milestone_Status_Map": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450674537
+      },
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791453554593
+      },
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791463110437
+      }
+    ],
+    "2.2 Implement label rules, tag rules, and the tolerant `hasLabel`": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450674603
+      },
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791463116686
+      },
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791769391541
+      }
+    ],
+    "2.3 Implement `resolveStatus` entry point with precedence": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450674652
+      },
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791769397504
+      },
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791770012142
+      }
+    ],
+    "3. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450674686
+      }
+    ],
+    "4.1 Implement `createMilestoneResolver` factory with invocation-scoped cache": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450674719
+      },
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791769398912
+      },
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791770013478
+      }
+    ],
+    "5.1 Implement status helpers and the update builder": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450674783
+      },
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791769399804
+      },
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791770014519
+      }
+    ],
+    "5.2 Implement `createTask` and `updateTask` with status-rejection handling": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450674818
+      },
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791770038880
+      }
+    ],
+    "6. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450674851
+      }
+    ],
+    "7.1 Delete local duplicates and wire in the resolvers": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450674892
+      }
+    ],
+    "7.2 Preserve QA creation special case and default-assignee behavior": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450674931
+      }
+    ],
+    "8.1 Delete local duplicates and delegate": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450674967
+      }
+    ],
+    "9.1 Delete local duplicates and delegate with batch counting": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450675006
+      }
+    ],
+    "10.1 Delete local duplicates and delegate with batch counting": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450675049
+      }
+    ],
+    "11. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450675086
+      }
+    ],
+    "12.1 Admit by mapped name OR allowlisted ID": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450675120
+      }
+    ],
+    "13.1 Isolate per-milestone fetch errors in `sync-gitlab.js`": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450675152
+      }
+    ],
+    "13.2 Isolate per-milestone fetch errors in `sync-trigger.js`": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450675187
+      }
+    ],
+    "14.1 Extend the Sync_Log schema in `logger.js`": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450675219
+      },
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791770039742
+      }
+    ],
+    "14.2 Normalize the new fields in `logs-store.js`": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450675257
+      }
+    ],
+    "14.3 Render milestone name and status origin in `logs.js`": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450675286
+      }
+    ],
+    "14.4 Populate `statusOrigin`/`milestone` at each sync log call site": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450675351
+      }
+    ],
+    "15.1 Document new/changed environment variables": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450675384
+      }
+    ],
+    "16. Final checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791450675419
+      }
+    ],
+    "2. Build the pure Status_Resolver module (`netlify/functions/utils/status-resolver.js`)": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791770012191
+      }
+    ],
+    "4. Build the Milestone_Resolver module (`netlify/functions/utils/milestone-resolver.js`)": [
+      {
+        "executionId": "c23f8a10-c1ad-4a65-8764-fdde092bb7f9",
+        "chatSessionId": "sess_edcb55d6-201e-41a9-8aca-d65518a2e0d5",
+        "timestamp": 1791770013523
+      }
+    ]
+  }
+}
