@@ -10,10 +10,28 @@
 
 const CLICKUP_API = 'https://api.clickup.com/api/v2';
 
+// Defaults for non-secret config. Secrets (CLICKUP_KEY, GITLAB_TOKEN) have no
+// default and must be configured in the Netlify site environment.
+const ENV_DEFAULTS = {
+    GITLAB_URL: 'https://tools.iripple.com',
+    QA_MILESTONE_ID: '756',
+};
+
+// Everything the sync needs before it can do any work.
+const REQUIRED_ENV = ['CLICKUP_KEY', 'CLICKUP_LIST_ID', 'GITLAB_TOKEN', 'GITLAB_URL'];
+
 function getEnv(key, fallback) {
-    const val = process.env[key];
+    const val = process.env[key] || ENV_DEFAULTS[key];
     if (!val && fallback === undefined) throw new Error(`Missing: ${key}`);
     return val || fallback;
+}
+
+/**
+ * Report every missing variable at once instead of failing on the first one,
+ * so the whole environment can be fixed in a single pass.
+ */
+function missingEnv() {
+    return REQUIRED_ENV.filter((key) => !process.env[key] && !ENV_DEFAULTS[key]);
 }
 
 function jsonResponse(statusCode, body) {
@@ -156,6 +174,17 @@ exports.handler = async (event) => {
     const issueUrl = event.queryStringParameters?.url;
     if (!issueUrl) {
         return jsonResponse(400, { error: 'Missing "url" query parameter' });
+    }
+
+    // Fail fast with the full list of unset variables. A deploy that is missing
+    // these looks identical to a broken issue URL otherwise.
+    const missing = missingEnv();
+    if (missing.length > 0) {
+        console.error(`[sync-single] Unset environment variables: ${missing.join(', ')}`);
+        return jsonResponse(500, {
+            error: `Server not configured. Unset environment variable(s): ${missing.join(', ')}. ` +
+                `Add them to the Netlify site environment (Site configuration → Environment variables), then redeploy.`,
+        });
     }
 
     console.log(`[sync-single] Syncing: ${issueUrl}`);
