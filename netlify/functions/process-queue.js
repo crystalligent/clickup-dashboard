@@ -10,6 +10,7 @@
 const { initBlobContext, getQueue, saveQueue } = require('./utils/queue');
 const { logRun } = require('./utils/logger');
 const { syncSignoffChecklist } = require('./utils/signoff');
+const { syncTicketDatesChecklist } = require('./utils/ticket-dates');
 
 const CLICKUP_API = 'https://api.clickup.com/api/v2';
 const BATCH_SIZE = 5;
@@ -150,6 +151,9 @@ async function processIssue(item) {
     // Developer/QA sign-off checklist (never blocks core sync)
     await syncSignoffChecklist(clickupRequest, taskId, item.assignees || [], item.labels || [], updates.status || existing.status);
 
+    // Ticket dates checklist (never blocks core sync)
+    await syncTicketDatesChecklist(clickupRequest, taskId, item, updates.status || existing.status);
+
     await logRun({
       source: 'scheduled', action: 'updated', status: 'success',
       duration: Date.now() - startTime,
@@ -182,6 +186,9 @@ async function processIssue(item) {
 
   // Developer/QA sign-off checklist (never blocks core sync)
   await syncSignoffChecklist(clickupRequest, newTask.id, item.assignees || [], item.labels || [], status);
+
+  // Ticket dates checklist (never blocks core sync)
+  await syncTicketDatesChecklist(clickupRequest, newTask.id, item, status);
 
   await logRun({
     source: 'scheduled', action: 'created', status: 'success',

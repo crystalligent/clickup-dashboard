@@ -10,6 +10,7 @@
 
 const { logRun } = require('./utils/logger');
 const { syncSignoffChecklist } = require('./utils/signoff');
+const { syncTicketDatesChecklist } = require('./utils/ticket-dates');
 
 const CLICKUP_API = 'https://api.clickup.com/api/v2';
 
@@ -210,6 +211,9 @@ exports.handler = async (event) => {
       // Developer/QA sign-off checklist (never blocks core sync)
       await syncSignoffChecklist(clickupRequest, taskId, issue.assignees || [], labels, updates.status || existingTask.status?.status);
 
+      // Ticket dates checklist (never blocks core sync)
+      await syncTicketDatesChecklist(clickupRequest, taskId, issue, updates.status || existingTask.status?.status);
+
       await logRun({
         source: 'manual', action: 'updated', status: 'success',
         duration: Date.now() - startTime,
@@ -242,6 +246,9 @@ exports.handler = async (event) => {
 
     // Developer/QA sign-off checklist (never blocks core sync)
     await syncSignoffChecklist(clickupRequest, newTask.id, issue.assignees || [], labels, status);
+
+    // Ticket dates checklist (never blocks core sync)
+    await syncTicketDatesChecklist(clickupRequest, newTask.id, issue, status);
 
     await logRun({
       source: 'manual', action: 'created', status: 'success',

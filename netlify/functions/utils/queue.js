@@ -2,7 +2,7 @@
  * Queue utility — stores pending issue syncs in Netlify Blobs or local /tmp.
  * 
  * Queue item format:
- * { iid, title, web_url, description, state, milestone_id, milestone_name, labels, assignees, added_at }
+ * { iid, title, web_url, description, state, created_at, milestone_id, milestone_name, labels, assignees, added_at }
  * 
  * IMPORTANT: Call initBlobContext(event) before any queue operations in Lambda-mode functions.
  */
@@ -95,6 +95,7 @@ async function enqueue(issues) {
       web_url: issue.web_url,
       description: issue.description || '',
       state: issue.state || 'opened',
+      created_at: issue.created_at || null,
       milestone_id: issue.milestone ? String(issue.milestone.id) : '',
       milestone_name: issue.milestone ? issue.milestone.title : '',
       labels: issue.labels || [],

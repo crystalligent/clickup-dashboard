@@ -1,0 +1,127 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Set up the test runner and PBT tooling": [
+      {
+        "executionId": "21f6d28f-ed0e-4b2c-9f3a-cde93ce2e5cb",
+        "chatSessionId": "sess_c0ac6200-fda5-44bf-aa3f-4baae7477410",
+        "timestamp": 1793857504596
+      },
+      {
+        "executionId": "21f6d28f-ed0e-4b2c-9f3a-cde93ce2e5cb",
+        "chatSessionId": "sess_c0ac6200-fda5-44bf-aa3f-4baae7477410",
+        "timestamp": 1793857520546
+      },
+      {
+        "executionId": "21f6d28f-ed0e-4b2c-9f3a-cde93ce2e5cb",
+        "chatSessionId": "sess_c0ac6200-fda5-44bf-aa3f-4baae7477410",
+        "timestamp": 1793857639793
+      }
+    ],
+    "2.1 Create the module skeleton and `CHECKLIST_NAME` + `formatDateUtc`": [
+      {
+        "executionId": "21f6d28f-ed0e-4b2c-9f3a-cde93ce2e5cb",
+        "chatSessionId": "sess_c0ac6200-fda5-44bf-aa3f-4baae7477410",
+        "timestamp": 1793857504650
+      }
+    ],
+    "2.5 Implement `labelTitlesLower` and `hasLabelCI`": [
+      {
+        "executionId": "21f6d28f-ed0e-4b2c-9f3a-cde93ce2e5cb",
+        "chatSessionId": "sess_c0ac6200-fda5-44bf-aa3f-4baae7477410",
+        "timestamp": 1793857504703
+      }
+    ],
+    "2.7 Implement `fieldOf`, `isFrozenField`, and `itemValue`": [
+      {
+        "executionId": "21f6d28f-ed0e-4b2c-9f3a-cde93ce2e5cb",
+        "chatSessionId": "sess_c0ac6200-fda5-44bf-aa3f-4baae7477410",
+        "timestamp": 1793857504751
+      }
+    ],
+    "3. Checkpoint - Ensure helper tests pass": [
+      {
+        "executionId": "21f6d28f-ed0e-4b2c-9f3a-cde93ce2e5cb",
+        "chatSessionId": "sess_c0ac6200-fda5-44bf-aa3f-4baae7477410",
+        "timestamp": 1793857504782
+      }
+    ],
+    "4.1 Implement read + find/create checklist + outer never-throw wrapper": [
+      {
+        "executionId": "21f6d28f-ed0e-4b2c-9f3a-cde93ce2e5cb",
+        "chatSessionId": "sess_c0ac6200-fda5-44bf-aa3f-4baae7477410",
+        "timestamp": 1793857504814
+      }
+    ],
+    "4.4 Implement Step 3 — dedupe per field": [
+      {
+        "executionId": "21f6d28f-ed0e-4b2c-9f3a-cde93ce2e5cb",
+        "chatSessionId": "sess_c0ac6200-fda5-44bf-aa3f-4baae7477410",
+        "timestamp": 1793857504846
+      }
+    ],
+    "4.6 Implement Step 4 — created_at add/update in place": [
+      {
+        "executionId": "21f6d28f-ed0e-4b2c-9f3a-cde93ce2e5cb",
+        "chatSessionId": "sess_c0ac6200-fda5-44bf-aa3f-4baae7477410",
+        "timestamp": 1793857504875
+      }
+    ],
+    "4.9 Implement Step 5 — for_release_at first-observation + freeze": [
+      {
+        "executionId": "21f6d28f-ed0e-4b2c-9f3a-cde93ce2e5cb",
+        "chatSessionId": "sess_c0ac6200-fda5-44bf-aa3f-4baae7477410",
+        "timestamp": 1793857504943
+      }
+    ],
+    "4.10 Implement Step 6 — released_at first-observation + freeze": [
+      {
+        "executionId": "21f6d28f-ed0e-4b2c-9f3a-cde93ce2e5cb",
+        "chatSessionId": "sess_c0ac6200-fda5-44bf-aa3f-4baae7477410",
+        "timestamp": 1793857504976
+      }
+    ],
+    "5. Checkpoint - Ensure reconciliation tests pass": [
+      {
+        "executionId": "21f6d28f-ed0e-4b2c-9f3a-cde93ce2e5cb",
+        "chatSessionId": "sess_c0ac6200-fda5-44bf-aa3f-4baae7477410",
+        "timestamp": 1793857505012
+      }
+    ],
+    "6.1 Implement `makeFakeClickup(initialTask)`": [
+      {
+        "executionId": "21f6d28f-ed0e-4b2c-9f3a-cde93ce2e5cb",
+        "chatSessionId": "sess_c0ac6200-fda5-44bf-aa3f-4baae7477410",
+        "timestamp": 1793857505045
+      }
+    ],
+    "7. Checkpoint - Ensure all module and property tests pass": [
+      {
+        "executionId": "21f6d28f-ed0e-4b2c-9f3a-cde93ce2e5cb",
+        "chatSessionId": "sess_c0ac6200-fda5-44bf-aa3f-4baae7477410",
+        "timestamp": 1793857505085
+      }
+    ],
+    "8.1 Wire `syncTicketDatesChecklist` into `process-queue.js`": [
+      {
+        "executionId": "21f6d28f-ed0e-4b2c-9f3a-cde93ce2e5cb",
+        "chatSessionId": "sess_c0ac6200-fda5-44bf-aa3f-4baae7477410",
+        "timestamp": 1793857505118
+      }
+    ],
+    "8.2 Wire `syncTicketDatesChecklist` into `sync-single.js`": [
+      {
+        "executionId": "21f6d28f-ed0e-4b2c-9f3a-cde93ce2e5cb",
+        "chatSessionId": "sess_c0ac6200-fda5-44bf-aa3f-4baae7477410",
+        "timestamp": 1793857505153
+      }
+    ],
+    "9. Final checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "21f6d28f-ed0e-4b2c-9f3a-cde93ce2e5cb",
+        "chatSessionId": "sess_c0ac6200-fda5-44bf-aa3f-4baae7477410",
+        "timestamp": 1793857505193
+      }
+    ]
+  }
+}

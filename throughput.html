@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Throughput — BXI</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="progress.css">
+    <link rel="stylesheet" href="throughput.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1>Throughput</h1>
+                <span class="subtitle">Created vs. completed (For Release), from the "ticket dates" checklist</span>
+            </div>
+            <div class="header-right">
+                <span class="last-updated" id="lastUpdated">—</span>
+                <a href="index.html" class="btn">← Main Dashboard</a>
+                <a href="progress.html" class="btn">📊 Progress Tracker</a>
+                <button class="btn" id="refreshBtn" onclick="loadTasks()">↻ Refresh</button>
+            </div>
+        </header>
+
+        <!-- Controls -->
+        <section class="section">
+            <div class="date-range-panel">
+                <div class="tp-control-row">
+                    <span class="tp-control-label">View</span>
+                    <div class="tp-segmented" id="granularityButtons">
+                        <button class="tp-seg-btn" data-granularity="daily">Daily</button>
+                        <button class="tp-seg-btn active" data-granularity="weekly">Weekly</button>
+                        <button class="tp-seg-btn" data-granularity="monthly">Monthly</button>
+                    </div>
+                </div>
+                <div class="tp-control-row">
+                    <span class="tp-control-label">Range</span>
+                    <div class="date-range-presets" id="rangePresets">
+                        <button class="preset-btn" data-preset="last-30-days">Last 30 Days</button>
+                        <button class="preset-btn active" data-preset="last-12-weeks">Last 12 Weeks</button>
+                        <button class="preset-btn" data-preset="last-6-months">Last 6 Months</button>
+                        <button class="preset-btn" data-preset="last-12-months">Last 12 Months</button>
+                        <button class="preset-btn" data-preset="this-year">This Year</button>
+                        <button class="preset-btn" data-preset="custom">Custom</button>
+                    </div>
+                </div>
+                <div class="date-range-inputs">
+                    <div class="field">
+                        <label for="dateFrom">From</label>
+                        <input type="date" id="dateFrom" />
+                    </div>
+                    <div class="field">
+                        <label for="dateTo">To</label>
+                        <input type="date" id="dateTo" />
+                    </div>
+                    <button class="btn btn-primary" id="applyRangeBtn">Apply</button>
+                </div>
+                <div class="date-range-info" id="rangeInfo"></div>
+            </div>
+        </section>
+
+        <!-- Loading -->
+        <div class="loading" id="loading" style="display:none;">
+            <div class="spinner"></div>
+            <p>Loading tickets...</p>
+            <p class="loading-progress" id="loadingProgress"></p>
+        </div>
+
+        <!-- Error -->
+        <div class="error" id="error" style="display:none;"></div>
+
+        <div class="dashboard" id="dashboard" style="display:none;">
+            <!-- KPIs -->
+            <section class="section">
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-icon">📥</div>
+                        <div class="kpi-content">
+                            <div class="kpi-value tp-created" id="kpiCreated">0</div>
+                            <div class="kpi-label">Created</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card kpi-done">
+                        <div class="kpi-icon">✅</div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpiCompleted">0</div>
+                            <div class="kpi-label">Completed (For Release)</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon">⚖</div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpiNet">0</div>
+                            <div class="kpi-label" id="kpiNetLabel">Net (created − completed)</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card kpi-rate">
+                        <div class="kpi-icon">📈</div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpiRatio">—</div>
+                            <div class="kpi-label">Completed ÷ Created</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon">⏱</div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpiAvg">0</div>
+                            <div class="kpi-label" id="kpiAvgLabel">Avg completed / week</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="tp-coverage" id="coverageNote"></div>
+            </section>
+
+            <!-- Charts -->
+            <section class="section">
+                <div class="chart-card">
+                    <h3 id="barChartTitle">Created vs. Completed per Week</h3>
+                    <div class="tp-chart-wrap"><canvas id="throughputChart"></canvas></div>
+                    <p class="tp-hint">Click a bar to list its tickets below.</p>
+                </div>
+            </section>
+            <section class="section">
+                <div class="chart-card">
+                    <h3>Cumulative Created vs. Completed</h3>
+                    <div class="tp-chart-wrap tp-chart-short"><canvas id="cumulativeChart"></canvas></div>
+                </div>
+            </section>
+
+            <!-- Period table -->
+            <section class="section">
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3>By Period</h3>
+                        <button class="btn btn-export" onclick="exportCSV()">📥 Export CSV</button>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Period</th>
+                                    <th class="tp-num">Created</th>
+                                    <th class="tp-num">Completed</th>
+                                    <th class="tp-num">Net</th>
+                                    <th class="tp-num">Cumulative Created</th>
+                                    <th class="tp-num">Cumulative Completed</th>
+                                </tr>
+                            </thead>
+                            <tbody id="periodTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Drill-down -->
+            <section class="section" id="detailSection" style="display:none;">
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3 id="detailTitle">Tickets</h3>
+                        <button class="btn btn-sm" onclick="closeDetail()">×</button>
+                    </div>
+                    <div class="tp-detail-grid">
+                        <div>
+                            <h4 class="tp-detail-heading tp-created">Created <span id="detailCreatedCount"></span></h4>
+                            <div class="table-wrapper">
+                                <table>
+                                    <thead><tr><th>Task</th><th>GitLab</th><th>Status</th><th>Created</th></tr></thead>
+                                    <tbody id="detailCreatedBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="tp-detail-heading tp-completed">Completed <span id="detailCompletedCount"></span></h4>
+                            <div class="table-wrapper">
+                                <table>
+                                    <thead><tr><th>Task</th><th>GitLab</th><th>Status</th><th>For Release</th></tr></thead>
+                                    <tbody id="detailCompletedBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+    <script src="throughput-core.js"></script>
+    <script src="throughput.js"></script>
+</body>
+</html>
